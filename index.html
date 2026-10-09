@@ -1,0 +1,534 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>LayoutForge — Motor Paramétrico de Grids & Diagramação</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="style.css?v=2.2.0">
+</head>
+<body class="theme-minimal">
+  <div class="app-shell">
+
+    <!-- SIDEBAR: PARÂMETROS & REGRAS -->
+    <aside class="studio-sidebar" id="sidebar">
+      
+      <!-- Brand & Header -->
+      <div class="sidebar-header">
+        <div class="brand">
+          <div class="brand-glyph">
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+              <rect x="3" y="3" width="18" height="18" rx="2"/>
+              <line x1="3" y1="9" x2="21" y2="9"/>
+              <line x1="9" y1="3" x2="9" y2="21"/>
+              <line x1="15" y1="3" x2="15" y2="21"/>
+            </svg>
+          </div>
+          <div class="brand-text">
+            <span class="brand-title">LayoutForge</span>
+            <span class="brand-sub">Grid & Layout Engine</span>
+          </div>
+        </div>
+        <div class="version-tag">v1.0</div>
+      </div>
+
+      <!-- Controls Container -->
+      <div class="sidebar-content">
+
+        <!-- 1. PRANCHETA & FORMATO -->
+        <section class="control-panel">
+          <div class="panel-header">
+            <span class="panel-step">01</span>
+            <h2>Prancheta & Formato</h2>
+          </div>
+
+          <div class="form-group">
+            <label class="form-label" for="presetSelect">Formato Pré-definido</label>
+            <div class="select-wrapper">
+              <select id="presetSelect" class="form-select">
+                <optgroup label="Editorial & Impressão">
+                  <option value="a4_portrait" selected>A4 Vertical (210 &times; 297 mm)</option>
+                  <option value="a4_landscape">A4 Horizontal (297 &times; 210 mm)</option>
+                  <option value="a3_portrait">A3 Poster (297 &times; 420 mm)</option>
+                  <option value="poster_50x70">Poster 50&times;70 cm (500 &times; 700 mm)</option>
+                  <option value="book_editorial">Livro Editorial (140 &times; 216 mm)</option>
+                  <option value="square_print">Revista Quadrada (210 &times; 210 mm)</option>
+                </optgroup>
+                <optgroup label="Digital & Social">
+                  <option value="ig_portrait">Instagram Post 4:5 (1080 &times; 1350 px)</option>
+                  <option value="ig_story">Story / Reels 9:16 (1080 &times; 1920 px)</option>
+                  <option value="screen_16_9">Slide / Tela 16:9 (1920 &times; 1080 px)</option>
+                  <option value="square_social">Post Quadrado 1:1 (1080 &times; 1080 px)</option>
+                </optgroup>
+                <optgroup label="Personalizado">
+                  <option value="custom">Dimensões Personalizadas...</option>
+                </optgroup>
+              </select>
+            </div>
+          </div>
+
+          <!-- Medidas Livres (Custom) -->
+          <div class="custom-dims-row" id="customDimsRow">
+            <div class="input-stacked">
+              <label for="inputWidth">Largura</label>
+              <div class="input-unit-wrap">
+                <input type="number" id="inputWidth" value="210" min="10" max="3000">
+                <span class="input-unit" id="unitLabelW">mm</span>
+              </div>
+            </div>
+            <button type="button" class="btn-swap-dims" id="btnSwapOrientation" title="Alternar Orientação (Vertical / Horizontal)">
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <path d="M7 16V4M7 4L3 8M7 4L11 8M17 8V20M17 20L21 16M17 20L13 16"/>
+              </svg>
+            </button>
+            <div class="input-stacked">
+              <label for="inputHeight">Altura</label>
+              <div class="input-unit-wrap">
+                <input type="number" id="inputHeight" value="297" min="10" max="3000">
+                <span class="input-unit" id="unitLabelH">mm</span>
+              </div>
+            </div>
+          </div>
+
+          <div class="form-row-compact">
+            <div class="input-stacked">
+              <label for="unitSelect">Unidade</label>
+              <select id="unitSelect" class="form-select-sm">
+                <option value="mm" selected>Milímetros (mm)</option>
+                <option value="px">Pixels (px)</option>
+                <option value="pt">Pontos (pt)</option>
+                <option value="cm">Centímetros (cm)</option>
+              </select>
+            </div>
+            <div class="input-stacked">
+              <label for="bleedInput">Sangria (Bleed)</label>
+              <div class="input-unit-wrap">
+                <input type="number" id="bleedInput" value="3" min="0" max="20" class="input-sm">
+                <span class="input-unit">mm</span>
+              </div>
+            </div>
+          </div>
+        </section>
+
+        <!-- 2. ESCOLA DE DESIGN & MÉTODO DO GRID -->
+        <section class="control-panel">
+          <div class="panel-header">
+            <span class="panel-step">02</span>
+            <h2>Escola & Cânone de Grade</h2>
+          </div>
+
+          <div class="segmented-control" id="schoolSelector">
+            <button type="button" class="segment-btn active" data-school="swiss">
+              <span class="segment-title">Suíço</span>
+              <span class="segment-caption">Müller-Brockmann</span>
+            </button>
+            <button type="button" class="segment-btn" data-school="vandeGraaf">
+              <span class="segment-title">Canônico</span>
+              <span class="segment-caption">Van de Graaf</span>
+            </button>
+            <button type="button" class="segment-btn" data-school="bauhaus">
+              <span class="segment-title">Bauhaus</span>
+              <span class="segment-caption">Axial / Tensão</span>
+            </button>
+            <button type="button" class="segment-btn" data-school="brutalist">
+              <span class="segment-title">Brutal</span>
+              <span class="segment-caption">Modular 1px</span>
+            </button>
+          </div>
+
+          <!-- Parâmetros de Colunas e Módulos -->
+          <div class="params-block" id="gridParamsBlock">
+            <div class="range-field">
+              <div class="range-labels">
+                <label for="colsSlider">Colunas</label>
+                <span class="range-val" id="colsVal">6</span>
+              </div>
+              <input type="range" id="colsSlider" min="1" max="16" value="6" class="apple-slider">
+            </div>
+
+            <div class="range-field">
+              <div class="range-labels">
+                <label for="rowsSlider">Módulos Verticais (Linhas)</label>
+                <span class="range-val" id="rowsVal">8</span>
+              </div>
+              <input type="range" id="rowsSlider" min="1" max="20" value="8" class="apple-slider">
+            </div>
+
+            <div class="range-field">
+              <div class="range-labels">
+                <label for="gutterSlider">Gutter (Goteira/Espaço)</label>
+                <span class="range-val" id="gutterVal">5 mm</span>
+              </div>
+              <input type="range" id="gutterSlider" min="0" max="30" value="5" class="apple-slider">
+            </div>
+
+            <!-- Margens -->
+            <div class="range-field">
+              <div class="range-labels">
+                <label for="marginSlider">Margens Globais</label>
+                <span class="range-val" id="marginVal">16 mm</span>
+              </div>
+              <input type="range" id="marginSlider" min="4" max="60" value="16" class="apple-slider">
+            </div>
+
+            <div class="form-check-row">
+              <label class="custom-checkbox">
+                <input type="checkbox" id="checkGoldenMargins">
+                <span class="check-indicator"></span>
+                <span class="check-label">Margens Canônicas Proporcionais (2:3:4:6)</span>
+              </label>
+            </div>
+          </div>
+        </section>
+
+        <!-- 3. MOTOR DE DIAGRAMAÇÃO & ENTROPIA (GERAÇÃO INFINITA) -->
+        <section class="control-panel">
+          <div class="panel-header">
+            <span class="panel-step">03</span>
+            <h2>Diagramação & Entropia</h2>
+          </div>
+
+          <!-- Entropy Slider: Da Ordem ao Caos -->
+          <div class="range-field entropy-field">
+            <div class="range-labels">
+              <label for="entropySlider">
+                <span class="entropy-title">Índice de Entropia (Quebra de Regras)</span>
+              </label>
+              <span class="range-val" id="entropyVal">15%</span>
+            </div>
+            <input type="range" id="entropySlider" min="0" max="100" value="15" class="apple-slider slider-entropy">
+            <div class="entropy-scale">
+              <span>0% Rigor Estrito</span>
+              <span>50% Tensão Asimétrica</span>
+              <span>100% David Carson</span>
+            </div>
+          </div>
+
+          <!-- Tipo de Composição -->
+          <div class="form-group">
+            <label class="form-label" for="layoutArchetype">Arquétipo de Diagramação</label>
+            <div class="select-wrapper">
+              <select id="layoutArchetype" class="form-select">
+                <option value="random_infinite" selected>🎲 Infinitas Variações Procedurais (Randômico)</option>
+                <option value="vertical_spine_90">📐 Vanguarda 90°: Headline Vertical Monumental + Galeria</option>
+                <option value="brutalist_tape_strips">⬛ Pós-Moderno: Tarjas Negativas Invertidas Escalonadas</option>
+                <option value="cross_axis_avantgarde">➕ Biaxial 90°: Eixos Cruzados (Tipofoto Perpendicular)</option>
+                <option value="swiss_monumental_top">Suíço: Headline Topo + Galeria + Colunas</option>
+                <option value="swiss_bottom_anchor">Suíço: Ancoragem Inferior (Headline no Rodapé)</option>
+                <option value="swiss_split_spine">Suíço: Divisão Lateral (Coluna Espinha + Grid)</option>
+                <option value="swiss_center_belt">Suíço: Cinturão Central (Display no Meio)</option>
+                <option value="swiss_typographic_pure">Suíço: Manifesto Tipográfico Puro (Zero Fotos)</option>
+                <option value="swiss_modular_quads">Suíço: Matriz Gerstner (Multi-Imagens Modulares)</option>
+                <option value="swiss_inverted_field">Suíço: Bloco Invertido (Contraste Preto & Branco)</option>
+                <option value="classical_book_canon">Canônico: Diagramação Clássica + Marginalia</option>
+                <option value="constructivist_tension">Construtivista: Tensão Axial + Acentos</option>
+                <option value="brutalist_data_matrix">Brutalista: Matriz Celular com Coordenadas</option>
+              </select>
+            </div>
+          </div>
+
+          <!-- Botão Gerador / Seed -->
+          <div class="generator-action-row">
+            <button type="button" class="btn-generate-layout" id="btnRollLayout">
+              <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <rect x="2" y="2" width="20" height="20" rx="5" ry="5"/>
+                <path d="M16 8h.01M8 8h.01M8 16h.01M16 16h.01M12 12h.01"/>
+              </svg>
+              <span>Gerar Nova Composição</span>
+            </button>
+            <button type="button" class="btn-ghost-icon" id="btnResetLayout" title="Restaurar Composição Padrão">
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <path d="M3 12a9 9 0 1 0 9-9 9.75 9.75 0 0 0-6.74 2.74L3 8"/>
+                <path d="M3 3v5h5"/>
+              </svg>
+            </button>
+          </div>
+
+          <div class="seed-indicator">
+            <span>Semente Ativa:</span>
+            <code id="currentSeedTag">#94021</code>
+          </div>
+
+          <div class="info-card">
+            <strong>Escala Tipográfica Sistêmica</strong>
+            <p>A hierarquia visual da composição é ancorada pela proporção de <em>Perfect Fourth (1.333)</em>. Essa matemática garante uma ressonância modular impecável entre corpo de texto, metadados e os títulos monumentais.</p>
+          </div>
+        </section>
+
+        <!-- 4. VISIBILIDADE DAS CAMADAS & GUIAS -->
+        <section class="control-panel">
+          <div class="panel-header">
+            <span class="panel-step">04</span>
+            <h2>Visibilidade das Camadas</h2>
+          </div>
+
+          <div class="toggles-grid">
+            <label class="toggle-pill">
+              <input type="checkbox" id="showColumns" checked>
+              <span class="pill-box">Colunas</span>
+            </label>
+            <label class="toggle-pill">
+              <input type="checkbox" id="showRows" checked>
+              <span class="pill-box">Módulos</span>
+            </label>
+            <label class="toggle-pill">
+              <input type="checkbox" id="showMargins" checked>
+              <span class="pill-box">Margens</span>
+            </label>
+            <label class="toggle-pill">
+              <input type="checkbox" id="showCanons">
+              <span class="pill-box">Diagonais</span>
+            </label>
+            <label class="toggle-pill">
+              <input type="checkbox" id="showBaseline">
+              <span class="pill-box">Baseline</span>
+            </label>
+            <label class="toggle-pill">
+              <input type="checkbox" id="showContent" checked>
+              <span class="pill-box">Diagramação</span>
+            </label>
+          </div>
+
+          <div class="form-row-compact" style="margin-top: 0.8rem;">
+            <div class="input-stacked">
+              <label for="guideColor">Cor das Guias</label>
+              <select id="guideColor" class="form-select-sm">
+                <option value="blueprint">Azul Blueprint (#0071e3)</option>
+                <option value="monochrome" selected>Monocromático Neutro (#1d1d1f)</option>
+                <option value="editorial">Vermelho Suíço (#e63946)</option>
+                <option value="subtle">Grafite Suave (#86868b)</option>
+              </select>
+            </div>
+            <div class="input-stacked">
+              <label for="guideOpacity">Opacidade</label>
+              <select id="guideOpacity" class="form-select-sm">
+                <option value="0.15">15% (Discreta)</option>
+                <option value="0.30" selected>30% (Padrão)</option>
+                <option value="0.55">55% (Marcante)</option>
+                <option value="0.90">90% (Técnica)</option>
+              </select>
+            </div>
+          </div>
+        </section>
+
+      </div>
+
+      <!-- FOOTER DA SIDEBAR: STATUS TÉCNICO -->
+      <div class="sidebar-footer">
+        <div class="spec-stat">
+          <span class="spec-label">Proporção</span>
+          <span class="spec-value" id="specRatio">1:1.414 (√2)</span>
+        </div>
+        <div class="spec-stat">
+          <span class="spec-label">Módulos Totais</span>
+          <span class="spec-value" id="specTotalCells">48 células</span>
+        </div>
+        <div class="spec-stat">
+          <span class="spec-label">Dimensão Real</span>
+          <span class="spec-value" id="specDimReal">210 &times; 297 mm</span>
+        </div>
+      </div>
+
+    </aside>
+
+    <!-- VIEWPORT CENTRAL: WORKSPACE & PRANCHETA -->
+    <main class="studio-viewport">
+
+      <!-- TOP BAR: ZOOM, STATUS & EXPORTAÇÃO -->
+      <header class="studio-topbar">
+        <div class="topbar-left">
+          <button type="button" class="btn-sidebar-toggle" id="btnToggleSidebar" title="Recolher Menu Lateral">
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+              <rect x="3" y="3" width="18" height="18" rx="2"/>
+              <line x1="9" y1="3" x2="9" y2="21"/>
+            </svg>
+          </button>
+
+          <div class="canvas-meta-pill">
+            <span class="dot-live"></span>
+            <span id="topbarFormatName">A4 Vertical</span>
+            <span class="pill-divider">/</span>
+            <span id="topbarSchoolName">Sistema Suíço Modular</span>
+          </div>
+        </div>
+
+        <div class="topbar-center">
+          <!-- ZOOM & FIT -->
+          <div class="zoom-pill">
+            <button type="button" class="zoom-btn" id="btnZoomOut" title="Diminuir">
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="5" y1="12" x2="19" y2="12"/></svg>
+            </button>
+            <span class="zoom-val" id="zoomPercent">100%</span>
+            <button type="button" class="zoom-btn" id="btnZoomIn" title="Aumentar">
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
+            </button>
+            <button type="button" class="zoom-btn-text" id="btnFitScreen">Ajustar</button>
+          </div>
+        </div>
+
+        <div class="topbar-right">
+          
+          <!-- MENU DE EXPORTAÇÃO COMPLETO -->
+          <div class="export-group">
+            <button type="button" class="btn-export-secondary" id="btnCopySvg" title="Copiar SVG para a Área de Transferência (Cole no Figma ou Illustrator)">
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <rect x="9" y="9" width="13" height="13" rx="2" ry="2"/>
+                <path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/>
+              </svg>
+              <span>Copiar p/ Figma/AI</span>
+            </button>
+
+            <!-- Exportar PDF Direto -->
+            <button type="button" class="btn-export-primary" id="btnExportPdf" title="Baixar PDF Vetorial Pronto para Impressão">
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/>
+                <polyline points="14 2 14 8 20 8"/>
+                <line x1="16" y1="13" x2="8" y2="13"/>
+                <line x1="16" y1="17" x2="8" y2="17"/>
+              </svg>
+              <span>Baixar PDF</span>
+            </button>
+
+            <!-- Exportar SVG Arquivo -->
+            <button type="button" class="btn-export-secondary" id="btnExportSvg" title="Baixar SVG Vetorial com Camadas (Illustrator/Figma)">
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/>
+                <polyline points="7 10 12 15 17 10"/>
+                <line x1="12" y1="15" x2="12" y2="3"/>
+              </svg>
+              <span>SVG Vetor</span>
+            </button>
+
+            <!-- Exportar Imagem PNG -->
+            <button type="button" class="btn-export-secondary" id="btnExportPngDirect" title="Baixar Imagem PNG de Alta Definição">
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <rect x="3" y="3" width="18" height="18" rx="2" ry="2"/>
+                <circle cx="8.5" cy="8.5" r="1.5"/>
+                <polyline points="21 15 16 10 5 21"/>
+              </svg>
+              <span>Imagem PNG</span>
+            </button>
+
+            <!-- Exportar InDesign JSX Script -->
+            <button type="button" class="btn-export-secondary" id="btnExportInDesign" title="Gerar e salvar Script JSX nativo para Adobe InDesign">
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <polyline points="16 18 22 12 16 6"/>
+                <polyline points="8 6 2 12 8 18"/>
+              </svg>
+              <span>InDesign (.jsx)</span>
+            </button>
+
+            <!-- Executar no InDesign Diretamente -->
+            <button type="button" class="btn-export-primary" id="btnRunInDesign" title="Executar e abrir layout diretamente no Adobe InDesign 2026 instalado" style="background: linear-gradient(135deg, #e11d48, #be123c); border-color: #be123c;">
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <polygon points="5 3 19 12 5 21 5 3"/>
+              </svg>
+              <span>Abrir no InDesign</span>
+            </button>
+
+            <!-- Menu com mais formatos -->
+            <div class="dropdown-wrapper">
+              <button type="button" class="btn-icon-dropdown" id="btnMoreExport" title="Mais Opções de Exportação">
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                  <circle cx="12" cy="12" r="1"/>
+                  <circle cx="19" cy="12" r="1"/>
+                  <circle cx="5" cy="12" r="1"/>
+                </svg>
+              </button>
+              <div class="dropdown-menu" id="moreExportDropdown">
+                <button type="button" class="dropdown-item" id="btnExportJson">
+                  <span class="item-title">Design Tokens (JSON)</span>
+                  <span class="item-desc">Coordenadas e especificações completas</span>
+                </button>
+                <button type="button" class="dropdown-item" id="btnExportPng">
+                  <span class="item-title">Renderizar PNG de Prévia</span>
+                  <span class="item-desc">Imagem rasterizada em alta resolução</span>
+                </button>
+                <div class="dropdown-divider"></div>
+                <button type="button" class="dropdown-item" id="btnSaveWithPicker" title="Abre a janela nativa do Windows para salvar o arquivo na pasta desejada">
+                  <span class="item-title">Salvar Como... (Diálogo Windows)</span>
+                  <span class="item-desc">Escolher pasta no Windows para salvar o SVG</span>
+                </button>
+                <button type="button" class="dropdown-item" id="btnOpenInBrowser" title="Abrir esta página no seu Chrome ou Edge externo">
+                  <span class="item-title">Abrir no Chrome / Edge</span>
+                  <span class="item-desc">Usar no seu navegador padrão do Windows</span>
+                </button>
+              </div>
+            </div>
+
+            <!-- Botão Abrir Pasta Downloads -->
+            <button type="button" class="btn-export-secondary" id="btnOpenDownloads" title="Abrir pasta Downloads do Windows">
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <path d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z"/>
+              </svg>
+              <span>Pasta Downloads</span>
+            </button>
+
+          </div>
+
+        </div>
+      </header>
+
+      <!-- CANVAS VIEWPORT / STAGE -->
+      <div class="artboard-stage" id="artboardStage">
+        
+        <!-- WRAPPER COM PAN & ZOOM -->
+        <div class="artboard-transform" id="artboardTransform">
+          
+          <!-- PRANCHETA FÍSICA (Com sombra e borda de corte) -->
+          <div class="artboard-paper" id="artboardPaper">
+            
+            <!-- ÁREA DA SANGRIA (BLEED) -->
+            <div class="bleed-guide" id="bleedGuide"></div>
+
+            <!-- CONTAINER VETORIAL SVG PRINCIPAL -->
+            <svg id="canvasSvg" class="canvas-svg" xmlns="http://www.w3.org/2000/svg">
+              <defs>
+                <!-- Padrão de Baseline se ativado -->
+                <pattern id="baselinePattern" width="100%" height="16" patternUnits="userSpaceOnUse">
+                  <line x1="0" y1="16" x2="100%" y2="16" stroke="currentColor" stroke-width="0.5" opacity="0.3"/>
+                </pattern>
+              </defs>
+
+              <!-- GRUPOS DE CAMADAS HIERÁRQUICAS -->
+              <g id="layerMargins" class="layer-group"></g>
+              <g id="layerColumns" class="layer-group"></g>
+              <g id="layerModules" class="layer-group"></g>
+              <g id="layerCanons" class="layer-group"></g>
+              <g id="layerBaseline" class="layer-group"></g>
+              <g id="layerContent" class="layer-group"></g>
+            </svg>
+
+          </div>
+
+        </div>
+
+        <!-- RÉGUAS FLUTUANTES / INFORMAÇÕES DE DIMENSÃO -->
+        <div class="floating-ruler-badge" id="rulerBadge">
+          <span id="badgeDims">210 &times; 297 mm</span>
+          <span class="badge-sub" id="badgeRatio">1:1.41</span>
+        </div>
+
+      </div>
+
+      <!-- INFORMAÇÕES RÁPIDAS NO RODAPÉ -->
+      <footer class="studio-bottombar">
+        <div class="bottom-tips">
+          <span class="tip-kbd"><kbd>Espaço + Arrastar</kbd> Pan</span>
+          <span class="tip-kbd"><kbd>Scroll</kbd> Zoom</span>
+          <span class="tip-kbd"><kbd>Ctrl + C</kbd> Copiar SVG</span>
+        </div>
+      </footer>
+
+    </main>
+  </div>
+
+  <!-- MODAL / TOAST -->
+  <div class="apple-toast" id="appleToast">Ação concluída com sucesso</div>
+
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+  <script src="app.js?v=2.9.0"></script>
+</body>
+</html>
