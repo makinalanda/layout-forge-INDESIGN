@@ -27,8 +27,10 @@ document.addEventListener('DOMContentLoaded', () => {
 
     // Motor Generativo & Diagramação
     entropy: 15,        // 0 a 100%
-    archetype: 'editorial_poster',
+    archetype: 'random_infinite',
+    activeProceduralArchetype: null,
     seed: 94021,
+    textHierarchy: 'creative_auto', // 'creative_auto' | 'lead_and_body' | 'bilingual_dialogue' | 'quote_callout' | 'asymmetric_breathing' | 'classic_columns'
 
     // Visibilidade das Camadas
     showColumns: true,
@@ -41,6 +43,14 @@ document.addEventListener('DOMContentLoaded', () => {
     // Cores e Opacidade das Guias
     guideColor: 'monochrome',
     guideOpacity: 0.30,
+
+    // Imagens, Mídia & Background Editorial
+    imageCount: 'auto',          // 'auto' | 0 | 1 | 2 | 3 | 4 | 5 | 6
+    imageDistribution: 'creative_auto', // 'creative_auto' | 'hero_dominant' | 'modular_balanced' | 'golden_tension' | 'staggered_rhythm'
+    bgImageMode: 'none',         // 'none' | 'full_bleed' | 'hero_top' | 'bottom_half' | 'split_wing'
+    bgTextContrast: true,        // inverte texto sobre o BG
+    showBgImage: true,           // visibilidade da camada de fundo
+    showImageFrames: true,       // visibilidade dos quadros de foto
 
     // Stage & Transform (Zoom / Pan)
     zoom: 1.0,
@@ -79,7 +89,32 @@ document.addEventListener('DOMContentLoaded', () => {
     { title: "MODULAR GRID ARCHITECTURE", sub: "Harmonia Matemática Aplicada", issue: "MANIFESTO 12" }
   ];
 
+  // Frases de Lead Monumental (Tamanho X para colunas de destaque, estilo Müller-Brockmann)
+  const leadPhrases = [
+    "Graphic design today still carries the imprint of the International Typographic Style.",
+    "A clareza estrutural organiza o caos e liberta o olho para uma leitura intuitiva e precisa.",
+    "Order, proportion and space: o vazio ativo como linguagem visual e autoridade cognitiva.",
+    "A grelha tipográfica não é uma camisa de força, mas sim um instrumento de liberdade orquestrada.",
+    "A visual communication manual: o grid como método universal de arquitetura gráfica.",
+    "Na tradição suíça, a coerência estrutural é um dever moral com o entendimento do leitor.",
+    "Quando tudo grita, nada é ouvido. A hierarquia se estabelece pela coragem de subtrair."
+  ];
+
+  // Micro-Etiquetas e Rótulos Técnicos para Colunas de Respiro
+  const subLabels = [
+    "SWISS STYLE // 1957",
+    "SECTION 01 // TYPOGRAPHY",
+    "GRID SYSTEMS // MANUAL",
+    "JOSEF MÜLLER-BROCKMANN",
+    "ZURICH // BASEL SCHOOL",
+    "RATIONELLE GESTALTUNG",
+    "NEUE GRAFIK // ARCHIVE"
+  ];
+
   const bodyTexts = [
+    "Photography and illustration, when used, are integrated with precision. Imagery aligns with the grid, reinforces the message, and avoids decoration for its own sake. Visuals are selected for relevance and clarity, not mood or trend.",
+    "Swiss style promotes the idea that design should be invisible. The layout should not call attention to itself, but support the content it holds. Typography, spacing, and composition work quietly in the background.",
+    "There is no sense of urgency or embellishment — just measured, methodical composition. This sense of restraint gives the work a timeless and confident quality.",
     "A grelha tipográfica não é uma camisa de força, mas sim um instrumento de liberdade orquestrada. Ela introduz ordem nas partes constituintes de uma composição, permitindo ao olho navegar com clareza cognitiva sem perder a tensão formal.",
     "O espaço em branco não representa o vazio ou a ausência; ele é o suporte ativo que confere autoridade e respiro à mensagem. Quando tudo grita, nada é ouvido. A hierarquia se estabelece pela coragem de subtrair o ornamento.",
     "Na tradição suíça de Müller-Brockmann e Vignelli, a coerência estrutural é um dever moral do designer com o leitor. Cada título, legenda e fotografia deve ancorar-se em um eixo comum, criando ressonância harmônica."
@@ -111,16 +146,30 @@ document.addEventListener('DOMContentLoaded', () => {
   const entropySlider = document.getElementById('entropySlider');
   const entropyVal = document.getElementById('entropyVal');
   const layoutArchetype = document.getElementById('layoutArchetype');
+  const textHierarchySelect = document.getElementById('textHierarchySelect');
   const btnRollLayout = document.getElementById('btnRollLayout');
   const btnResetLayout = document.getElementById('btnResetLayout');
   const currentSeedTag = document.getElementById('currentSeedTag');
 
+  // Controles de Imagens, Slots & Background (Seção 04)
+  const imageCountBadge = document.getElementById('imageCountBadge');
+  const imageCountChips = document.getElementById('imageCountChips');
+  const imageCountDesc = document.getElementById('imageCountDesc');
+  const imageDistributionGroup = document.getElementById('imageDistributionGroup');
+  const imageDistributionSelect = document.getElementById('imageDistributionSelect');
+  const bgImageModeSelect = document.getElementById('bgImageModeSelect');
+  const bgContrastRow = document.getElementById('bgContrastRow');
+  const checkBgTextContrast = document.getElementById('checkBgTextContrast');
+
+  // Visibilidade das Camadas (Seção 05)
   const showColumnsCheck = document.getElementById('showColumns');
   const showRowsCheck = document.getElementById('showRows');
   const showMarginsCheck = document.getElementById('showMargins');
   const showCanonsCheck = document.getElementById('showCanons');
   const showBaselineCheck = document.getElementById('showBaseline');
   const showContentCheck = document.getElementById('showContent');
+  const showBgImageCheck = document.getElementById('showBgImage');
+  const showImageFramesCheck = document.getElementById('showImageFrames');
   const guideColorSelect = document.getElementById('guideColor');
   const guideOpacitySelect = document.getElementById('guideOpacity');
 
@@ -130,6 +179,8 @@ document.addEventListener('DOMContentLoaded', () => {
   const canvasSvg = document.getElementById('canvasSvg');
   const bleedGuide = document.getElementById('bleedGuide');
 
+  const layerBackground = document.getElementById('layerBackground');
+  const layerFrames = document.getElementById('layerFrames');
   const layerMargins = document.getElementById('layerMargins');
   const layerColumns = document.getElementById('layerColumns');
   const layerModules = document.getElementById('layerModules');
@@ -298,6 +349,8 @@ document.addEventListener('DOMContentLoaded', () => {
     bleedGuide.style.bottom = `-${bleedPx}px`;
 
     // Limpa camadas
+    if (layerBackground) layerBackground.innerHTML = '';
+    if (layerFrames) layerFrames.innerHTML = '';
     layerMargins.innerHTML = '';
     layerColumns.innerHTML = '';
     layerModules.innerHTML = '';
@@ -390,6 +443,13 @@ document.addEventListener('DOMContentLoaded', () => {
 
     // 6. MOTOR DE DIAGRAMAÇÃO & CONTEÚDO (LAYOUT ENGINE)
     state.layoutManifest = [];
+    if (state.showBgImage && state.bgImageMode !== 'none') {
+      try {
+        renderBackgroundImageLayer(geom, state.entropy / 100);
+      } catch (bgErr) {
+        console.error('Erro ao renderizar camada de fundo BG:', bgErr);
+      }
+    }
     if (state.showContent) {
       try {
         renderGenerativeContent(geom);
@@ -472,6 +532,14 @@ document.addEventListener('DOMContentLoaded', () => {
   function measureTextWidth(text, fontSize, fontWeight = '400', fontFamily = 'Inter, sans-serif') {
     measureCtx.font = `${fontWeight} ${fontSize}px ${fontFamily}`;
     return measureCtx.measureText(text).width;
+  }
+
+  // Retorna o tamanho mínimo seguro relativo à unidade ativa (mm, cm, pt, px)
+  function getMinUnitSize(sizeInPt) {
+    if (state.unit === 'mm') return sizeInPt * 0.3528;
+    if (state.unit === 'cm') return sizeInPt * 0.03528;
+    if (state.unit === 'px') return sizeInPt * 1.8;
+    return sizeInPt;
   }
 
   // Quebra de texto inteligente que respeita estritamente a largura máxima permitida
@@ -557,7 +625,388 @@ document.addEventListener('DOMContentLoaded', () => {
     "«Ordem sem liberdade é tirania; liberdade sem ordem é caos puro.» — Karl Gerstner"
   ];
 
-  function renderGenerativeContent(geom) {
+    const allArchetypesList = [
+    'vertical_spine_90',
+    'brutalist_tape_strips',
+    'cross_axis_avantgarde',
+    'swiss_monumental_top',
+    'swiss_bottom_anchor',
+    'swiss_split_spine',
+    'swiss_center_belt',
+    'swiss_modular_quads',
+    'swiss_inverted_field',
+    'constructivist_tension',
+    'brutalist_data_matrix',
+    'classical_book_canon',
+    'swiss_typographic_pure'
+  ];
+
+  function getArchetypeName(arch) {
+    const names = {
+      'random_infinite': 'Infinitas Variações Procedurais',
+      'vertical_spine_90': 'Vanguarda 90°: Headline Monumental',
+      'brutalist_tape_strips': 'Pós-Moderno: Tarjas Negativas',
+      'cross_axis_avantgarde': 'Biaxial 90°: Eixos Cruzados',
+      'swiss_monumental_top': 'Suíço: Headline Topo + Galeria',
+      'swiss_bottom_anchor': 'Suíço: Ancoragem no Rodapé',
+      'swiss_split_spine': 'Suíço: Coluna Espinha Split',
+      'swiss_center_belt': 'Suíço: Cinturão Central',
+      'swiss_typographic_pure': 'Manifesto Tipográfico Puro',
+      'swiss_modular_quads': 'Matriz Gerstner: Multi-Imagens',
+      'swiss_inverted_field': 'Bloco Invertido B&W',
+      'classical_book_canon': 'Canônico: Diagramação Clássica',
+      'constructivist_tension': 'Construtivista: Tensão Axial',
+      'brutalist_data_matrix': 'Brutalista: Matriz Celular'
+    };
+    return names[arch] || 'Composição Paramétrica';
+  }
+
+  // =========================================================================
+  // SISTEMA ADAPTATIVO DE IMAGENS, MÍDIA & BACKGROUND (SEÇÃO 04)
+  // =========================================================================
+
+  function getAdaptiveTextColor(geom, targetY = 0) {
+    if (state.bgImageMode === 'none' || !state.bgTextContrast || !state.showBgImage) {
+      return {
+        title: '#1d1d1f',
+        sub: '#6e6e73',
+        body: '#1d1d1f',
+        meta: '#6e6e73',
+        isOverBg: false
+      };
+    }
+
+    if (state.bgImageMode === 'full_bleed') {
+      return {
+        title: '#ffffff',
+        sub: '#d1d1d6',
+        body: '#f5f5f7',
+        meta: '#d1d1d6',
+        isOverBg: true
+      };
+    }
+
+    if (state.bgImageMode === 'hero_top') {
+      const thresholdY = geom.h * 0.48;
+      if (targetY <= thresholdY) {
+        return {
+          title: '#ffffff',
+          sub: '#d1d1d6',
+          body: '#ffffff',
+          meta: '#d1d1d6',
+          isOverBg: true
+        };
+      } else {
+        return {
+          title: '#1d1d1f',
+          sub: '#6e6e73',
+          body: '#1d1d1f',
+          meta: '#6e6e73',
+          isOverBg: false
+        };
+      }
+    }
+
+    if (state.bgImageMode === 'bottom_half') {
+      const thresholdY = geom.h * 0.50;
+      if (targetY >= thresholdY) {
+        return {
+          title: '#ffffff',
+          sub: '#d1d1d6',
+          body: '#f5f5f7',
+          meta: '#d1d1d6',
+          isOverBg: true
+        };
+      } else {
+        return {
+          title: '#1d1d1f',
+          sub: '#6e6e73',
+          body: '#1d1d1f',
+          meta: '#6e6e73',
+          isOverBg: false
+        };
+      }
+    }
+
+    if (state.bgImageMode === 'split_wing') {
+      return {
+        title: '#ffffff',
+        sub: '#d1d1d6',
+        body: '#1d1d1f',
+        meta: '#6e6e73',
+        isOverBg: true
+      };
+    }
+
+    return {
+      title: '#1d1d1f',
+      sub: '#6e6e73',
+      body: '#1d1d1f',
+      meta: '#6e6e73',
+      isOverBg: false
+    };
+  }
+
+  function getEffectiveImageCount(defaultCount) {
+    if (state.imageCount === 'auto') return defaultCount;
+    return parseInt(state.imageCount, 10);
+  }
+
+  function appendSvgBackgroundImageFrame(parent, x, y, width, height, labelText, entropyFactor = 0) {
+    if (width <= 0 || height <= 0) return;
+    if (!state.showBgImage) return;
+
+    if (state.layoutManifest) {
+      state.layoutManifest.unshift({
+        type: 'image',
+        isBg: true,
+        x: x,
+        y: y,
+        width: width,
+        height: height,
+        label: labelText
+      });
+    }
+
+    const group = document.createElementNS('http://www.w3.org/2000/svg', 'g');
+    group.setAttribute('class', 'bg-image-frame-group');
+
+    // Fundo fotográfico simulado (tom escuro grafite sofisticado de editorial)
+    const rect = document.createElementNS('http://www.w3.org/2000/svg', 'rect');
+    rect.setAttribute('x', x);
+    rect.setAttribute('y', y);
+    rect.setAttribute('width', width);
+    rect.setAttribute('height', height);
+    rect.setAttribute('fill', '#1c1c1f');
+    group.appendChild(rect);
+
+    // Diagonais técnicas de quadro fotográfico padrão InDesign
+    const c1 = document.createElementNS('http://www.w3.org/2000/svg', 'line');
+    c1.setAttribute('x1', x); c1.setAttribute('y1', y);
+    c1.setAttribute('x2', x + width); c1.setAttribute('y2', y + height);
+    c1.setAttribute('stroke', '#2c2c30'); c1.setAttribute('stroke-width', '0.75');
+    group.appendChild(c1);
+
+    const c2 = document.createElementNS('http://www.w3.org/2000/svg', 'line');
+    c2.setAttribute('x1', x + width); c2.setAttribute('y1', y);
+    c2.setAttribute('x2', x); c2.setAttribute('y2', y + height);
+    c2.setAttribute('stroke', '#2c2c30'); c2.setAttribute('stroke-width', '0.75');
+    group.appendChild(c2);
+
+    // Scrim gradiente semi-transparente para legibilidade cinematográfica dos textos por cima
+    const scrim = document.createElementNS('http://www.w3.org/2000/svg', 'rect');
+    scrim.setAttribute('x', x);
+    scrim.setAttribute('y', y);
+    scrim.setAttribute('width', width);
+    scrim.setAttribute('height', height);
+    scrim.setAttribute('fill', '#000000');
+    scrim.setAttribute('opacity', '0.35');
+    group.appendChild(scrim);
+
+    // Marca d'água técnica discreta
+    const tag = document.createElementNS('http://www.w3.org/2000/svg', 'text');
+    tag.setAttribute('x', x + width / 2);
+    tag.setAttribute('y', y + height * 0.90);
+    tag.setAttribute('font-family', 'JetBrains Mono, monospace');
+    tag.setAttribute('font-size', Math.max(5.5, Math.min(8, width * 0.035)));
+    tag.setAttribute('fill', '#ffffff');
+    tag.setAttribute('opacity', '0.45');
+    tag.setAttribute('text-anchor', 'middle');
+    tag.textContent = `[ ${labelText} — Ctrl+D no InDesign ]`;
+    group.appendChild(tag);
+
+    if (parent) parent.appendChild(group);
+  }
+
+  function renderBackgroundImageLayer(geom, entropyFactor = 0) {
+    if (!layerBackground) return;
+    layerBackground.innerHTML = '';
+    if (state.bgImageMode === 'none' || !state.showBgImage) return;
+
+    const { w, h, rows, columns, colWidth, rowHeight } = geom;
+    const bleed = state.bleed || 3;
+
+    let bgX = 0, bgY = 0, bgW = w, bgH = h;
+    let bgLabel = 'BACKGROUND PHOTOGRAPHY // FULL BLEED';
+
+    if (state.bgImageMode === 'full_bleed') {
+      bgX = -bleed;
+      bgY = -bleed;
+      bgW = w + (bleed * 2);
+      bgH = h + (bleed * 2);
+      bgLabel = 'BACKGROUND PHOTO // FULL BLEED';
+    } else if (state.bgImageMode === 'hero_top') {
+      const topRows = Math.max(2, Math.floor(rows.length * 0.45));
+      bgX = -bleed;
+      bgY = -bleed;
+      bgW = w + (bleed * 2);
+      bgH = (rows[topRows - 1].y + rowHeight) + bleed;
+      bgLabel = 'HERO BACKGROUND // TOP BLEED';
+    } else if (state.bgImageMode === 'bottom_half') {
+      const startRow = Math.floor(rows.length * 0.5);
+      bgX = -bleed;
+      bgY = rows[startRow].y;
+      bgW = w + (bleed * 2);
+      bgH = (h - bgY) + bleed;
+      bgLabel = 'BACKGROUND PHOTO // LOWER FIELD';
+    } else if (state.bgImageMode === 'split_wing') {
+      const splitCol = Math.floor(columns.length * 0.5);
+      bgX = -bleed;
+      bgY = -bleed;
+      bgW = (columns[splitCol - 1].x + colWidth) + bleed;
+      bgH = h + (bleed * 2);
+      bgLabel = 'SPLIT BACKGROUND // LEFT WING';
+    }
+
+    appendSvgBackgroundImageFrame(layerBackground, bgX, bgY, bgW, bgH, bgLabel, entropyFactor);
+  }
+
+  function distributeCreativeImageSlots(parent, colStart, colSpan, rowStart, rowSpan, requestedCount, geom, entropyFactor, s, labelPrefix, distributionStyle = 'creative_auto') {
+    if (!state.showImageFrames) return [];
+    const count = (requestedCount === 'auto') ? 1 : parseInt(requestedCount, 10);
+    if (count <= 0) return [];
+    if (colSpan <= 0 || rowSpan <= 0) return [];
+
+    const { columns, rows, colWidth, rowHeight } = geom;
+    const safeColSpan = Math.max(1, Math.min(columns.length - colStart, colSpan));
+    const safeRowSpan = Math.max(1, Math.min(rows.length - rowStart, rowSpan));
+    const slots = [];
+
+    function addSlot(cStart, cCount, rStart, rCount, slotLabel) {
+      const sc = Math.max(0, Math.min(columns.length - 1, cStart));
+      const ec = Math.max(sc, Math.min(columns.length - 1, cStart + cCount - 1));
+      const sr = Math.max(0, Math.min(rows.length - 1, rStart));
+      const er = Math.max(sr, Math.min(rows.length - 1, rStart + rCount - 1));
+
+      const x = columns[sc].x;
+      const w = (columns[ec].x + colWidth) - x;
+      const y = rows[sr].y;
+      const h = (rows[er].y + rowHeight) - y;
+
+      if (w > 0 && h > 0) {
+        appendSvgImageFrame(parent, x, y, w, h, slotLabel, entropyFactor);
+        slots.push({ x, y, width: w, height: h, label: slotLabel });
+      }
+    }
+
+    if (count === 1) {
+      addSlot(colStart, safeColSpan, rowStart, safeRowSpan, `${labelPrefix} // HERO 01`);
+    } else if (count === 2) {
+      if (safeColSpan >= 2 && (safeRowSpan <= 3 || distributionStyle === 'golden_tension' || distributionStyle === 'modular_balanced')) {
+        let splitCol = Math.floor(safeColSpan / 2);
+        if (distributionStyle === 'golden_tension' && safeColSpan >= 3) {
+          splitCol = Math.max(1, Math.round(safeColSpan * 0.62));
+        }
+        addSlot(colStart, splitCol, rowStart, safeRowSpan, `${labelPrefix} // 01`);
+        addSlot(colStart + splitCol, safeColSpan - splitCol, rowStart, safeRowSpan, `${labelPrefix} // 02`);
+      } else {
+        const splitRow = Math.max(1, Math.floor(safeRowSpan / 2));
+        addSlot(colStart, safeColSpan, rowStart, splitRow, `${labelPrefix} // UPPER`);
+        addSlot(colStart, safeColSpan, rowStart + splitRow, safeRowSpan - splitRow, `${labelPrefix} // LOWER`);
+      }
+    } else if (count === 3) {
+      if (distributionStyle === 'modular_balanced' && safeColSpan >= 3) {
+        const c1 = Math.floor(safeColSpan / 3);
+        const c2 = Math.floor((safeColSpan - c1) / 2);
+        const c3 = safeColSpan - c1 - c2;
+        addSlot(colStart, c1, rowStart, safeRowSpan, `${labelPrefix} // A`);
+        addSlot(colStart + c1, c2, rowStart, safeRowSpan, `${labelPrefix} // B`);
+        addSlot(colStart + c1 + c2, c3, rowStart, safeRowSpan, `${labelPrefix} // C`);
+      } else if (safeColSpan >= 3 && safeRowSpan >= 2) {
+        const heroCols = Math.max(1, Math.round(safeColSpan * 0.6));
+        const subCols = safeColSpan - heroCols;
+        const splitRow = Math.max(1, Math.floor(safeRowSpan / 2));
+        addSlot(colStart, heroCols, rowStart, safeRowSpan, `${labelPrefix} // HERO`);
+        addSlot(colStart + heroCols, subCols, rowStart, splitRow, `${labelPrefix} // DETAIL 01`);
+        addSlot(colStart + heroCols, subCols, rowStart + splitRow, safeRowSpan - splitRow, `${labelPrefix} // DETAIL 02`);
+      } else {
+        const splitRow = Math.max(1, Math.floor(safeRowSpan * 0.5));
+        const splitCol = Math.max(1, Math.floor(safeColSpan * 0.5));
+        addSlot(colStart, safeColSpan, rowStart, splitRow, `${labelPrefix} // PANORAMA`);
+        addSlot(colStart, splitCol, rowStart + splitRow, safeRowSpan - splitRow, `${labelPrefix} // SUB 01`);
+        addSlot(colStart + splitCol, safeColSpan - splitCol, rowStart + splitRow, safeRowSpan - splitRow, `${labelPrefix} // SUB 02`);
+      }
+    } else if (count === 4) {
+      if (distributionStyle === 'hero_dominant' && safeRowSpan >= 3) {
+        const topRows = Math.max(1, Math.floor(safeRowSpan * 0.55));
+        const botRows = safeRowSpan - topRows;
+        addSlot(colStart, safeColSpan, rowStart, topRows, `${labelPrefix} // HERO WIDE`);
+        const c1 = Math.floor(safeColSpan / 3);
+        const c2 = Math.floor((safeColSpan - c1) / 2);
+        const c3 = safeColSpan - c1 - c2;
+        addSlot(colStart, c1, rowStart + topRows, botRows, `${labelPrefix} // SUB A`);
+        addSlot(colStart + c1, c2, rowStart + topRows, botRows, `${labelPrefix} // SUB B`);
+        addSlot(colStart + c1 + c2, c3, rowStart + topRows, botRows, `${labelPrefix} // SUB C`);
+      } else {
+        const splitCol = Math.max(1, Math.floor(safeColSpan / 2));
+        const splitRow = Math.max(1, Math.floor(safeRowSpan / 2));
+        addSlot(colStart, splitCol, rowStart, splitRow, `${labelPrefix} // QUAD 01`);
+        addSlot(colStart + splitCol, safeColSpan - splitCol, rowStart, splitRow, `${labelPrefix} // QUAD 02`);
+        addSlot(colStart, splitCol, rowStart + splitRow, safeRowSpan - splitRow, `${labelPrefix} // QUAD 03`);
+        addSlot(colStart + splitCol, safeColSpan - splitCol, rowStart + splitRow, safeRowSpan - splitRow, `${labelPrefix} // QUAD 04`);
+      }
+    } else if (count === 5) {
+      if (safeColSpan >= 4 && safeRowSpan >= 2) {
+        const heroCols = Math.max(2, Math.round(safeColSpan * 0.55));
+        const sideCols = safeColSpan - heroCols;
+        const sideColA = Math.max(1, Math.floor(sideCols / 2));
+        const sideColB = sideCols - sideColA;
+        const splitRow = Math.max(1, Math.floor(safeRowSpan / 2));
+
+        addSlot(colStart, heroCols, rowStart, safeRowSpan, `${labelPrefix} // HERO MAJOR`);
+        addSlot(colStart + heroCols, sideColA, rowStart, splitRow, `${labelPrefix} // T1`);
+        addSlot(colStart + heroCols + sideColA, sideColB, rowStart, splitRow, `${labelPrefix} // T2`);
+        addSlot(colStart + heroCols, sideColA, rowStart + splitRow, safeRowSpan - splitRow, `${labelPrefix} // T3`);
+        addSlot(colStart + heroCols + sideColA, sideColB, rowStart + splitRow, safeRowSpan - splitRow, `${labelPrefix} // T4`);
+      } else {
+        const topRows = Math.max(1, Math.floor(safeRowSpan * 0.5));
+        const botRows = safeRowSpan - topRows;
+        const topCol1 = Math.floor(safeColSpan / 2);
+        addSlot(colStart, topCol1, rowStart, topRows, `${labelPrefix} // TOP 01`);
+        addSlot(colStart + topCol1, safeColSpan - topCol1, rowStart, topRows, `${labelPrefix} // TOP 02`);
+
+        const c1 = Math.floor(safeColSpan / 3);
+        const c2 = Math.floor((safeColSpan - c1) / 2);
+        const c3 = safeColSpan - c1 - c2;
+        addSlot(colStart, c1, rowStart + topRows, botRows, `${labelPrefix} // BOT 01`);
+        addSlot(colStart + c1, c2, rowStart + topRows, botRows, `${labelPrefix} // BOT 02`);
+        addSlot(colStart + c1 + c2, c3, rowStart + topRows, botRows, `${labelPrefix} // BOT 03`);
+      }
+    } else if (count >= 6) {
+      const numGridCols = safeColSpan >= 4 ? 3 : 2;
+      const numGridRows = numGridCols === 3 ? 2 : 3;
+      const splitRows = Math.max(1, Math.floor(safeRowSpan / numGridRows));
+
+      for (let r = 0; r < numGridRows; r++) {
+        const curRowStart = rowStart + (r * splitRows);
+        const curRowSpan = (r === numGridRows - 1) ? (safeRowSpan - (r * splitRows)) : splitRows;
+
+        if (numGridCols === 3) {
+          const c1 = Math.floor(safeColSpan / 3);
+          const c2 = Math.floor((safeColSpan - c1) / 2);
+          const c3 = safeColSpan - c1 - c2;
+          const colSplits = [c1, c2, c3];
+          let runningCol = colStart;
+          for (let c = 0; c < 3; c++) {
+            const slotNum = String(r * 3 + c + 1).padStart(2, '0');
+            addSlot(runningCol, colSplits[c], curRowStart, curRowSpan, `${labelPrefix} // GRID ${slotNum}`);
+            runningCol += colSplits[c];
+          }
+        } else {
+          const c1 = Math.floor(safeColSpan / 2);
+          const c2 = safeColSpan - c1;
+          const slotNumA = String(r * 2 + 1).padStart(2, '0');
+          const slotNumB = String(r * 2 + 2).padStart(2, '0');
+          addSlot(colStart, c1, curRowStart, curRowSpan, `${labelPrefix} // GRID ${slotNumA}`);
+          addSlot(colStart + c1, c2, curRowStart, curRowSpan, `${labelPrefix} // GRID ${slotNumB}`);
+        }
+      }
+    }
+
+    return slots;
+  }
+
+function renderGenerativeContent(geom) {
     const { w, h, margins, columns, rows, colWidth, rowHeight, usableW, usableH } = geom;
     const entropyFactor = state.entropy / 100;
     // O seed procedural varia de forma rítmica com a entropia para transformar a composição em tempo real ao arrastar o slider
@@ -578,39 +1027,14 @@ document.addEventListener('DOMContentLoaded', () => {
 
     // Determina o Arquétipo Arquitetônico
     let activeArchetype = state.archetype;
-    if (activeArchetype === 'random_infinite') {
-      let archetypesPool;
-      if (entropyFactor < 0.25) {
-        // 0% a 25%: Rigor Suíço Estrito (Cânones Clássicos e Ortogonais de Zurique)
-        archetypesPool = [
-          'swiss_monumental_top',
-          'swiss_bottom_anchor',
-          'swiss_split_spine',
-          'classical_book_canon'
-        ];
-      } else if (entropyFactor <= 0.60) {
-        // 26% a 60%: Tensão Assimétrica & Eixos 90° / Tarjas (Weingart / New Wave)
-        archetypesPool = [
-          'swiss_split_spine',
-          'swiss_center_belt',
-          'brutalist_tape_strips',
-          'swiss_modular_quads',
-          'swiss_inverted_field',
-          'cross_axis_avantgarde'
-        ];
-      } else {
-        // 61% a 100%: Ruptura Estrutural, Headline Vertical 90°, Tarjas Invertidas & Vanguardas
-        archetypesPool = [
-          'vertical_spine_90',
-          'brutalist_tape_strips',
-          'cross_axis_avantgarde',
-          'constructivist_tension',
-          'brutalist_data_matrix',
-          'swiss_inverted_field'
-        ];
+    if (activeArchetype === 'random_infinite' || !activeArchetype) {
+      if (!state.activeProceduralArchetype) {
+        const archIndex = Math.floor(seededRandom(s + 7) * allArchetypesList.length);
+        state.activeProceduralArchetype = allArchetypesList[archIndex];
       }
-      const archIndex = Math.floor(seededRandom(s + 7) * archetypesPool.length);
-      activeArchetype = archetypesPool[archIndex];
+      activeArchetype = state.activeProceduralArchetype;
+    } else {
+      activeArchetype = state.archetype;
     }
 
     // DISPATCHER: RENDERIZA O ARQUÉTIPO SELECIONADO
@@ -661,6 +1085,80 @@ document.addEventListener('DOMContentLoaded', () => {
     renderStandardMetadata(geom, content, baseScale, s, entropyFactor);
   }
 
+  // =========================================================================
+  // ANCORAGEM MODULAR RIGOROSA DE HEADLINE (Josef Müller-Brockmann / Gerstner)
+  // Ancoragem milimétrica de caixa alta à hang-line de topo do módulo e
+  // distribuição onde cada linha ocupa seu próprio módulo sem cortes ou flutuações.
+  // =========================================================================
+  function appendGridSnappedHeadline(parent, lines, x, startRowIdx, rows, maxWidth, textColor, entropyFactor = 0) {
+    if (!lines || lines.length === 0 || !rows || rows.length === 0) return startRowIdx + 1;
+
+    const rowHeight = rows[0].height;
+    const numLines = lines.length;
+    const endRowIdx = Math.min(rows.length - 1, startRowIdx + numLines - 1);
+    const actualModules = endRowIdx - startRowIdx + 1;
+
+    // A altura de caixa alta (Cap-Height) ideal para um módulo ocupa ~80% do rowHeight
+    const targetCapHeight = rowHeight * 0.80;
+    let idealFontSize = targetCapHeight / 0.72; // Cap-Height ≈ 0.72 * fontSize
+
+    // Ajusta o tamanho da fonte para que nenhuma linha exceda a largura máxima permitida
+    lines.forEach(line => {
+      measureCtx.font = `800 ${idealFontSize}px Inter, sans-serif`;
+      const w = measureCtx.measureText(line).width;
+      if (w > maxWidth) {
+        idealFontSize = Math.min(idealFontSize, (maxWidth / w) * idealFontSize * 0.98);
+      }
+    });
+
+    const fontSize = Math.max(getMinUnitSize(14), idealFontSize);
+    const capHeight = fontSize * 0.72;
+
+    const group = document.createElementNS('http://www.w3.org/2000/svg', 'g');
+    group.setAttribute('id', 'MODULAR_HEADLINE_SNAPPED');
+
+    if (state.layoutManifest && (parent === layerContent || (parent && parent.closest && parent.closest('#LAYER_CONTENT')) || parent === null)) {
+      state.layoutManifest.push({
+        type: 'text',
+        lines: lines,
+        x: x,
+        y: rows[startRowIdx].y,
+        fontSize: fontSize,
+        lineSpacing: 1.0,
+        fontWeight: '800',
+        color: textColor,
+        rotation: 0
+      });
+    }
+
+    lines.forEach((lineStr, idx) => {
+      const targetRow = Math.min(rows.length - 1, startRowIdx + idx);
+      const rowY = rows[targetRow].y;
+
+      // Ancoragem Suíça Estrita:
+      // O topo da letra maiúscula toca exatamente a linha horizontal superior do módulo (rowY)
+      // A baseline é calculada matematicamente como: rowY + capHeight
+      // Assim: Topo = Baseline - CapHeight = (rowY + capHeight) - capHeight = rowY!
+      // Zero pixels de folga, zero flutuação!
+      const baselineY = rowY + capHeight;
+
+      const textEl = document.createElementNS('http://www.w3.org/2000/svg', 'text');
+      textEl.setAttribute('x', x);
+      textEl.setAttribute('y', baselineY.toFixed(2));
+      textEl.setAttribute('font-family', 'Inter, -apple-system, sans-serif');
+      textEl.setAttribute('font-weight', '800');
+      textEl.setAttribute('font-size', fontSize.toFixed(2));
+      textEl.setAttribute('letter-spacing', '-0.025em');
+      textEl.setAttribute('fill', textColor);
+      textEl.textContent = lineStr;
+      group.appendChild(textEl);
+    });
+
+    if (parent) parent.appendChild(group);
+
+    return startRowIdx + actualModules;
+  }
+
   // -------------------------------------------------------------------------
   // ARQUÉTIPO 1: SUÍÇO MONUMENTAL TOP (O clássico cartaz de concerto de Zurique)
   // -------------------------------------------------------------------------
@@ -670,54 +1168,56 @@ document.addEventListener('DOMContentLoaded', () => {
     const r1 = seededRandom(s + 10);
     const r2 = seededRandom(s + 11);
     const r3 = seededRandom(s + 12);
+    const tc = getAdaptiveTextColor(geom, rows[0].y);
 
-    // 1. TÍTULO NO TOPO
+    // 1. TÍTULO NO TOPO (RIGOR MODULAR SUÍÇO)
     const titleColStart = (columns.length >= 4 && r1 > 0.7) ? 1 : 0;
-    const titleColSpan = columns.length - titleColStart;
     const titleX = columns[titleColStart].x;
     const titleMaxWidth = (columns[columns.length - 1].x + colWidth) - titleX;
-    const titleY = rows[0].y;
-    const titleMaxH = rowHeight * (r2 > 0.5 ? 2.8 : 2.0);
 
-    const { size: titleSize, lines: titleLines } = fitHeadline(content.title, titleMaxWidth, baseScale * (r2 > 0.5 ? 2.5 : 2.2), titleMaxH);
+    // Quebra equilibrada das linhas do título
+    const titleLines = wrapTextToWidth(content.title, titleMaxWidth, baseScale * 2.2, '800');
+
+    let nextRow = 0;
     if (entropyFactor > 0.65 && seededRandom(s + 99) > 0.35) {
-      appendTapeStripHeadline(layerContent, titleLines, titleX, titleY, titleSize, 1.25, '800', entropyFactor, s, columns, colWidth);
+      appendTapeStripHeadline(layerContent, titleLines, titleX, rows[0].y, baseScale * 2.0, 1.25, '800', entropyFactor, s, columns, colWidth);
+      nextRow = Math.min(rows.length - 1, titleLines.length);
     } else {
-      appendSvgText(layerContent, titleLines, titleX, titleY, titleSize, 1.08, '800', '#1d1d1f', 0, entropyFactor > 0.45);
+      nextRow = appendGridSnappedHeadline(layerContent, titleLines, titleX, 0, rows, titleMaxWidth, tc.title, entropyFactor);
     }
 
-    // Subtítulo
-    const subSize = Math.max(7, titleSize * 0.35);
-    const subY = titleY + titleSize + (titleLines.length * titleSize * 1.08) + 4;
+    // Subtítulo perfeitamente ancorado na linha do módulo seguinte
+    const subRow = Math.min(rows.length - 1, nextRow);
+    const subSize = Math.max(getMinUnitSize(9), baseScale * 0.42);
+    const subY = rows[subRow].y;
     const subLines = wrapTextToWidth(content.sub.toUpperCase(), titleMaxWidth, subSize, '600');
-    appendSvgText(layerContent, subLines, titleX, subY, subSize, 1.25, '600', '#6e6e73');
+    appendSvgText(layerContent, subLines, titleX, subY, subSize, 1.25, '600', tc.sub);
 
-    // 2. IMAGEM MODULAR (Centro)
-    const imgMinRow = Math.min(2, Math.max(0, rows.length - 1));
-    const imgMaxRow = Math.min(rows.length - 1, Math.max(imgMinRow, Math.floor(rows.length * 0.4)));
-    const imgRowStart = Math.min(rows.length - 1, Math.max(0, imgMinRow + Math.floor(r3 * (imgMaxRow - imgMinRow + 1))));
-    const imgRowSpan = Math.max(1, Math.min(rows.length - imgRowStart, Math.floor(rows.length * (0.25 + r1 * 0.2))));
+    // 2. IMAGENS MODULARES (COMEÇAM NO MÓDULO SEGUINTE AO SUBTÍTULO)
+    const effectiveCount = getEffectiveImageCount(1);
+    const imgRowStart = Math.min(rows.length - 1, subRow + 1);
+    const availableRows = rows.length - imgRowStart;
+    const imgRowSpan = Math.max(1, Math.min(availableRows - 2, Math.floor(rows.length * (0.28 + r1 * 0.15))));
     
     const imgColStart = (columns.length >= 4 && r2 > 0.8) ? 1 : 0;
     const rawColSpan = columns.length >= 6 ? (r3 > 0.5 ? columns.length - 2 : columns.length - 1 - imgColStart) : columns.length - imgColStart;
     const imgColSpan = Math.max(1, Math.min(columns.length - imgColStart, rawColSpan));
-    
-    const endRowIdx = Math.min(rows.length - 1, imgRowStart + imgRowSpan - 1);
-    const endColIdx = Math.min(columns.length - 1, imgColStart + imgColSpan - 1);
-    const imgW = (columns[endColIdx].x + colWidth) - columns[imgColStart].x;
-    const imgH = (rows[endRowIdx].y + rowHeight) - rows[imgRowStart].y;
 
-    appendSvgImageFrame(layerContent, columns[imgColStart].x, rows[imgRowStart].y, imgW, imgH, 'HERO PHOTOGRAPHY // MODULAR', entropyFactor);
+    if (effectiveCount > 0 && imgRowStart < rows.length - 1) {
+      distributeCreativeImageSlots(layerFrames || layerContent, imgColStart, imgColSpan, imgRowStart, imgRowSpan, effectiveCount, geom, entropyFactor, s, 'HERO PHOTOGRAPHY', state.imageDistribution);
 
-    // Stat Callout ao lado da imagem se sobrar colunas
-    if (columns.length >= 6 && imgColStart + imgColSpan < columns.length) {
-      const statColX = columns[imgColStart + imgColSpan].x;
-      const statW = (columns[columns.length - 1].x + colWidth) - statColX;
-      appendStatBadge(layerContent, statColX, rows[imgRowStart].y, statW, imgH, statItem.num, statItem.label, baseScale, entropyFactor);
+      // Stat Callout ao lado da imagem se sobrar colunas
+      if (columns.length >= 6 && imgColStart + imgColSpan < columns.length) {
+        const statColX = columns[imgColStart + imgColSpan].x;
+        const statW = (columns[columns.length - 1].x + colWidth) - statColX;
+        const endRowIdx = Math.min(rows.length - 1, imgRowStart + imgRowSpan - 1);
+        const imgH = (rows[endRowIdx].y + rowHeight) - rows[imgRowStart].y;
+        appendStatBadge(layerContent, statColX, rows[imgRowStart].y, statW, imgH, statItem.num, statItem.label, baseScale, entropyFactor);
+      }
     }
 
-    // 3. COLUNAS DE TEXTO (Rodapé)
-    const bodyRowStart = Math.max(0, Math.min(rows.length - 1, imgRowStart + imgRowSpan));
+    // 3. COLUNAS DE TEXTO
+    const bodyRowStart = (effectiveCount > 0) ? Math.max(0, Math.min(rows.length - 1, imgRowStart + imgRowSpan)) : Math.min(rows.length - 1, Math.max(1, Math.floor(rows.length * 0.3)));
     const bodyY = rows[bodyRowStart]?.y || (h - margins.bottom - 40);
     const numCols = columns.length >= 4 ? (r1 > 0.4 ? 2 : 3) : 1;
     appendMultiColumnBody(layerContent, columns, 0, columns.length, colWidth, bodyY, h - margins.bottom - 5, bodyCopy, numCols, baseScale);
@@ -731,20 +1231,25 @@ document.addEventListener('DOMContentLoaded', () => {
 
     const r1 = seededRandom(s + 20);
     const r2 = seededRandom(s + 21);
+    const effectiveCount = getEffectiveImageCount(1);
 
-    // 1. IMAGEM NO TOPO (Grande campo visual)
+    // 1. IMAGEM NO TOPO
     const imgColStart = (columns.length >= 4 && r1 > 0.6) ? 1 : 0;
     const imgColSpan = (columns.length >= 6 && r2 > 0.5) ? columns.length - 2 : columns.length - imgColStart;
-    const imgH = rowHeight * Math.max(2, Math.floor(rows.length * (0.3 + r1 * 0.2)));
-    appendSvgImageFrame(layerContent, columns[imgColStart].x, rows[0].y, (columns[imgColStart + imgColSpan - 1].x + colWidth) - columns[imgColStart].x, imgH, 'VISUAL FIELD // TOP ANCHOR', entropyFactor);
+    const imgRowSpan = Math.max(2, Math.floor(rows.length * (0.3 + r1 * 0.2)));
+
+    if (effectiveCount > 0) {
+      distributeCreativeImageSlots(layerFrames || layerContent, imgColStart, imgColSpan, 0, imgRowSpan, effectiveCount, geom, entropyFactor, s, 'VISUAL FIELD', state.imageDistribution);
+    }
 
     // 2. TEXTO ESTATÍSTICO & NARRATIVA NO MEIO
-    const midRow = Math.max(2, Math.floor(rows.length * (0.35 + r2 * 0.15)));
+    const midRow = (effectiveCount > 0) ? Math.max(imgRowSpan, Math.floor(rows.length * (0.35 + r2 * 0.15))) : 1;
     const midY = rows[midRow].y;
     const bodyCols = columns.length >= 6 ? (r1 > 0.5 ? columns.length - 2 : columns.length - 3) : columns.length;
     const numSubCols = bodyCols >= 4 ? (r2 > 0.5 ? 2 : 3) : 1;
-    
-    appendMultiColumnBody(layerContent, columns, 0, bodyCols, colWidth, midY, rows[Math.min(rows.length - 1, rows.length - 3)].y, bodyCopy, numSubCols, baseScale);
+    const endMidRow = Math.min(rows.length - 1, rows.length - 3);
+
+    appendMultiColumnBody(layerContent, columns, 0, bodyCols, colWidth, midY, rows[endMidRow].y, bodyCopy, numSubCols, baseScale);
 
     if (columns.length >= 6 && bodyCols < columns.length) {
       const statX = columns[bodyCols].x;
@@ -752,89 +1257,80 @@ document.addEventListener('DOMContentLoaded', () => {
       appendStatBadge(layerContent, statX, midY, (columns[bodyCols + statSpan - 1].x + colWidth) - statX, rowHeight * 2, statItem.num, statItem.label, baseScale, entropyFactor);
     }
 
-    // 3. TÍTULO MONUMENTAL ANCORADO NO RODAPÉ
-    const bottomRowSpan = r1 > 0.5 ? 2 : 3;
-    const bottomRow = Math.max(midRow + 1, rows.length - bottomRowSpan);
+    // 3. TÍTULO MONUMENTAL ANCORADO NO RODAPÉ (MODULAR SUÍÇO)
     const titleColStart = (columns.length >= 4 && r2 > 0.7) ? 1 : 0;
     const titleX = columns[titleColStart].x;
     const titleW = (columns[columns.length - 1].x + colWidth) - titleX;
-    const titleY = rows[bottomRow].y;
+    const titleLines = wrapTextToWidth(content.title, titleW, baseScale * 2.2, '800');
+    const bottomRow = Math.max(midRow + 1, rows.length - titleLines.length);
 
-    const { size: titleSize, lines: titleLines } = fitHeadline(content.title, titleW, baseScale * (2.0 + r1 * 0.5), rowHeight * bottomRowSpan);
     if (entropyFactor > 0.65 && seededRandom(s + 98) > 0.35) {
-      appendTapeStripHeadline(layerContent, titleLines, titleX, titleY, titleSize, 1.25, '800', entropyFactor, s, columns, colWidth);
+      appendTapeStripHeadline(layerContent, titleLines, titleX, rows[bottomRow].y, baseScale * 2.0, 1.25, '800', entropyFactor, s, columns, colWidth);
     } else {
-      appendSvgText(layerContent, titleLines, titleX, titleY, titleSize, 1.08, '800', '#1d1d1f', 0, entropyFactor > 0.45);
+      appendGridSnappedHeadline(layerContent, titleLines, titleX, bottomRow, rows, titleW, tc.title, entropyFactor);
     }
 
-    const subSize = Math.max(7, titleSize * 0.34);
+    const subRow = Math.max(0, bottomRow - 1);
+    const subSize = Math.max(getMinUnitSize(9), baseScale * 0.42);
     const subLines = wrapTextToWidth(content.sub.toUpperCase(), titleW, subSize, '600');
-    appendSvgText(layerContent, subLines, titleX, titleY - 6, subSize, 1.2, '600', '#6e6e73');
+    appendSvgText(layerContent, subLines, titleX, rows[subRow].y, subSize, 1.2, '600', tc.sub);
   }
 
   // -------------------------------------------------------------------------
-  // ARQUÉTIPO 3: SUÍÇO DIVISÃO LATERAL (Split Spine: Coluna Editorial à Esquerda ou Direita)
+  // ARQUÉTIPO 3: SUÍÇO DIVISÃO LATERAL (Split Spine)
   // -------------------------------------------------------------------------
   function renderSwissSplitSpine(geom, content, bodyCopy, statItem, baseScale, s, entropyFactor = 0) {
     const { w, h, margins, columns, rows, colWidth, rowHeight } = geom;
 
     const r1 = seededRandom(s + 30);
     const r2 = seededRandom(s + 31);
-    
-    // Spine width 25% to 40% of columns
+
     const spineCols = Math.max(1, Math.floor(columns.length * (0.25 + r1 * 0.15)));
     const rightCols = columns.length - spineCols;
-    
-    // Determine se a espinha fica na esquerda (padrão) ou na direita
-    const spineOnLeft = r2 > 0.3; // 70% chance de ser na esquerda
-    
+    const spineOnLeft = r2 > 0.3;
     const spineStartCol = spineOnLeft ? 0 : rightCols;
     const rightStartCol = spineOnLeft ? spineCols : 0;
 
-    // 1. ESPINHA (Título empilhado verticalmente + Tag Numérica)
+    // 1. ESPINHA
     const spineX = columns[spineStartCol].x;
     const spineW = (columns[spineStartCol + spineCols - 1].x + colWidth) - spineX;
-    
-    // Numeral Grande
+    const spineTc = getAdaptiveTextColor(geom, rows[0].y);
+
     const bigNum = document.createElementNS('http://www.w3.org/2000/svg', 'text');
     bigNum.setAttribute('x', spineX);
     bigNum.setAttribute('y', rows[0].y + baseScale * 2.4);
     bigNum.setAttribute('font-family', 'Inter, sans-serif');
     bigNum.setAttribute('font-weight', '800');
     bigNum.setAttribute('font-size', baseScale * 2.8);
-    bigNum.setAttribute('fill', entropyFactor > 0.75 ? '#e63946' : '#1d1d1f');
+    bigNum.setAttribute('fill', entropyFactor > 0.75 ? '#e63946' : spineTc.title);
     bigNum.textContent = statItem.num;
     layerContent.appendChild(bigNum);
 
-    // Título na espinha
     const titleY = rows[0].y + baseScale * 3.6;
     const { size: titleSize, lines: titleLines } = fitHeadline(content.title, spineW, baseScale * (1.3 + r1 * 0.4), rowHeight * 4);
     if (entropyFactor > 0.6) {
-      // Título Vertical 90° na coluna espinha se alta entropia!
       const spineBotY = rows[Math.min(rows.length - 1, 5)].y + rowHeight;
-      appendSvgVerticalHeadline(layerContent, content.title, spineX + spineW * 0.5, spineBotY, spineBotY - rows[0].y, baseScale * 1.8, '800', '#1d1d1f', entropyFactor > 0.75 ? 'red' : 'black', -90);
+      appendSvgVerticalHeadline(layerContent, content.title, spineX + spineW * 0.5, spineBotY, spineBotY - rows[0].y, baseScale * 1.8, '800', spineTc.title, entropyFactor > 0.75 ? 'red' : 'black', -90);
     } else {
-      appendSvgText(layerContent, titleLines, spineX, titleY, titleSize, 1.1, '800', '#1d1d1f', 0, entropyFactor > 0.45);
+      appendSvgText(layerContent, titleLines, spineX, titleY, titleSize, 1.1, '800', spineTc.title, 0, entropyFactor > 0.45);
     }
 
-    // Subtítulo
+    const subFontSize = Math.max(getMinUnitSize(8.5), titleSize * 0.35);
     const subY = titleY + (titleLines.length * titleSize * 1.1) + 4;
-    const subLines = wrapTextToWidth(content.sub.toUpperCase(), spineW, Math.max(6.5, titleSize * 0.4), '600');
-    appendSvgText(layerContent, subLines, spineX, subY, Math.max(6.5, titleSize * 0.4), 1.25, '600', '#86868b');
+    const subLines = wrapTextToWidth(content.sub.toUpperCase(), spineW, subFontSize, '600');
+    appendSvgText(layerContent, subLines, spineX, subY, subFontSize, 1.25, '600', spineTc.sub);
 
-    // 2. SEÇÃO GRANDE (Imagem + Corpo em colunas embaixo)
-    const mainX = columns[rightStartCol].x;
-    const mainW = (columns[rightStartCol + rightCols - 1].x + colWidth) - mainX;
-    
-    // Altura da imagem variavel
-    const imgH = rowHeight * Math.max(2, Math.floor(rows.length * (0.35 + r1 * 0.2)));
-
-    // Chance de a imagem não colar no topo
+    // 2. SEÇÃO GRANDE (Imagens + Corpo)
+    const effectiveCount = getEffectiveImageCount(1);
+    const imgRowSpan = Math.max(2, Math.floor(rows.length * (0.35 + r1 * 0.2)));
     const imgStartRow = (rows.length >= 6 && r1 > 0.7) ? 1 : 0;
 
-    appendSvgImageFrame(layerContent, mainX, rows[imgStartRow].y, mainW, imgH, 'EDITORIAL FEATURE // WING', entropyFactor);
+    if (effectiveCount > 0) {
+      distributeCreativeImageSlots(layerFrames || layerContent, rightStartCol, rightCols, imgStartRow, imgRowSpan, effectiveCount, geom, entropyFactor, s, 'EDITORIAL WING', state.imageDistribution);
+    }
 
-    const bodyY = rows[imgStartRow].y + imgH + rowHeight * (0.3 + r2 * 0.2);
+    const bodyRowStart = (effectiveCount > 0) ? Math.min(rows.length - 1, imgStartRow + imgRowSpan) : imgStartRow;
+    const bodyY = rows[bodyRowStart]?.y || (rows[imgStartRow].y + 30);
     const numSubCols = rightCols >= 4 ? (r1 > 0.5 ? 2 : 3) : (rightCols >= 2 ? 2 : 1);
     appendMultiColumnBody(layerContent, columns, rightStartCol, rightCols, colWidth, bodyY, h - margins.bottom - 5, bodyCopy, numSubCols, baseScale);
   }
@@ -848,41 +1344,73 @@ document.addEventListener('DOMContentLoaded', () => {
     const r1 = seededRandom(s + 40);
     const r2 = seededRandom(s + 41);
 
-    // 1. TOPO: Dois quadros ou um dependendo do RNG
-    const splitImages = columns.length >= 4 && r1 > 0.4;
-    const imgTopH = rowHeight * (r2 > 0.5 ? 3 : 2);
-    
-    if (splitImages) {
-      const splitPoint = Math.max(1, Math.floor(columns.length * (0.3 + r1 * 0.4)));
-      appendSvgImageFrame(layerContent, columns[0].x, rows[0].y, (columns[splitPoint - 1].x + colWidth) - columns[0].x, imgTopH, 'FRAME A // 01', entropyFactor);
-      appendSvgImageFrame(layerContent, columns[splitPoint].x, rows[0].y, (columns[columns.length - 1].x + colWidth) - columns[splitPoint].x, imgTopH, 'FRAME B // 02', entropyFactor);
-    } else {
-      appendSvgImageFrame(layerContent, columns[0].x, rows[0].y, (columns[columns.length - 1].x + colWidth) - columns[0].x, imgTopH, 'PANORAMIC FRAME', entropyFactor);
-    }
-
-    // 2. CENTRO: Faixa Tipográfica Monolítica
-    const beltMinRow = Math.max(2, Math.floor(rows.length * 0.3));
-    const beltMaxRow = Math.max(beltMinRow, Math.floor(rows.length * 0.6));
-    const beltRow = beltMinRow + Math.floor(r2 * (beltMaxRow - beltMinRow + 1));
-    const beltY = rows[beltRow].y;
+    const effectiveCount = getEffectiveImageCount(2);
     const fullW = (columns[columns.length - 1].x + colWidth) - columns[0].x;
 
-    const { size: titleSize, lines: titleLines } = fitHeadline(content.title, fullW, baseScale * (2.1 + r1 * 0.4), rowHeight * (r2 > 0.5 ? 2.5 : 2.0));
-    if (entropyFactor > 0.65) {
-      appendTapeStripHeadline(layerContent, titleLines, columns[0].x, beltY, titleSize, 1.25, '800', entropyFactor, s, columns, colWidth);
-    } else {
-      appendSvgText(layerContent, titleLines, columns[0].x, beltY, titleSize, 1.08, '800', '#1d1d1f', 0, entropyFactor > 0.45);
-    }
+    // Se o usuário quer imagens abaixo ou composição top-down:
+    // A) Título no Topo + Cinturão de Fotos no Meio + Texto na Base (60%)
+    // B) Fotos no Topo + Cinturão Tipográfico no Meio + Texto na Base (40%)
+    const isTitleAtTop = r1 > 0.4;
 
-    // 3. BASE: 2 ou 3 colunas de corpo alinhadas
-    const bodyRow = Math.min(rows.length - 1, beltRow + titleLines.length + (r1 > 0.5 ? 1 : 0));
-    const bodyY = rows[bodyRow]?.y || (beltY + titleLines.length * titleSize * 1.2 + 20);
-    const numCols = columns.length >= 6 ? (r1 > 0.5 ? 3 : 2) : (columns.length >= 4 ? 2 : 1);
-    appendMultiColumnBody(layerContent, columns, 0, columns.length, colWidth, bodyY, h - margins.bottom - 5, bodyCopy, numCols, baseScale);
+    if (isTitleAtTop) {
+      // 1. TÍTULO NO TOPO (RIGOR MODULAR SUÍÇO)
+      const tc = getAdaptiveTextColor(geom, rows[0].y);
+      const titleLines = wrapTextToWidth(content.title, fullW, baseScale * 2.2, '800');
+
+      let nextRow = 0;
+      if (entropyFactor > 0.65) {
+        appendTapeStripHeadline(layerContent, titleLines, columns[0].x, rows[0].y, baseScale * 2.0, 1.25, '800', entropyFactor, s, columns, colWidth);
+        nextRow = Math.min(rows.length - 1, titleLines.length);
+      } else {
+        nextRow = appendGridSnappedHeadline(layerContent, titleLines, columns[0].x, 0, rows, fullW, tc.title, entropyFactor);
+      }
+
+      const imgRowStart = Math.min(rows.length - 1, nextRow);
+      const availableRows = rows.length - imgRowStart;
+      const imgRowSpan = Math.max(1, Math.min(availableRows - 2, Math.floor(rows.length * 0.35)));
+
+      // 2. FOTOS ABAIXO DO TÍTULO
+      if (effectiveCount > 0 && imgRowStart < rows.length - 1) {
+        distributeCreativeImageSlots(layerFrames || layerContent, 0, columns.length, imgRowStart, imgRowSpan, effectiveCount, geom, entropyFactor, s, 'BELT PANORAMA', state.imageDistribution);
+      }
+
+      // 3. TEXTO NA BASE
+      const bodyRow = (effectiveCount > 0) ? (imgRowStart + imgRowSpan) : imgRowStart;
+      const bodyY = rows[Math.min(rows.length - 1, bodyRow)]?.y || (h - margins.bottom - 40);
+      const numCols = columns.length >= 6 ? (r1 > 0.5 ? 3 : 2) : (columns.length >= 4 ? 2 : 1);
+      appendMultiColumnBody(layerContent, columns, 0, columns.length, colWidth, bodyY, h - margins.bottom - 5, bodyCopy, numCols, baseScale);
+
+    } else {
+      // B) FOTOS NO TOPO, CINTURÃO TIPOGRÁFICO NO CENTRO, TEXTO NA BASE
+      const beltRow = Math.max(2, Math.floor(rows.length * 0.32));
+      const beltY = rows[beltRow].y;
+
+      // 1. Fotos no Topo (rows 0 a beltRow)
+      if (effectiveCount > 0) {
+        distributeCreativeImageSlots(layerFrames || layerContent, 0, columns.length, 0, beltRow, effectiveCount, geom, entropyFactor, s, 'BELT PANORAMA', state.imageDistribution);
+      }
+
+      // 2. Cinturão no Centro (RIGOR MODULAR)
+      const beltTc = getAdaptiveTextColor(geom, beltY);
+      const titleLines = wrapTextToWidth(content.title, fullW, baseScale * 2.1, '800');
+      let beltEndRow = beltRow + 1;
+      if (entropyFactor > 0.65) {
+        appendTapeStripHeadline(layerContent, titleLines, columns[0].x, beltY, baseScale * 2.0, 1.25, '800', entropyFactor, s, columns, colWidth);
+        beltEndRow = Math.min(rows.length - 1, beltRow + titleLines.length);
+      } else {
+        beltEndRow = appendGridSnappedHeadline(layerContent, titleLines, columns[0].x, beltRow, rows, fullW, beltTc.title, entropyFactor);
+      }
+
+      // 3. Texto na Base
+      const bodyRow = Math.min(rows.length - 1, beltEndRow);
+      const bodyY = rows[bodyRow]?.y || (beltY + 40);
+      const numCols = columns.length >= 6 ? (r1 > 0.5 ? 3 : 2) : (columns.length >= 4 ? 2 : 1);
+      appendMultiColumnBody(layerContent, columns, 0, columns.length, colWidth, bodyY, h - margins.bottom - 5, bodyCopy, numCols, baseScale);
+    }
   }
 
   // -------------------------------------------------------------------------
-  // ARQUÉTIPO 5: MANIFESTO TIPOGRÁFICO PURO (Zero fotos, Müller-Brockmann / Ruder)
+  // ARQUÉTIPO 5: MANIFESTO TIPOGRÁFICO PURO
   // -------------------------------------------------------------------------
   function renderSwissTypographicPure(geom, content, bodyCopy, quoteItem, baseScale, s, entropyFactor = 0) {
     const { w, h, margins, columns, rows, colWidth, rowHeight } = geom;
@@ -892,37 +1420,50 @@ document.addEventListener('DOMContentLoaded', () => {
 
     const titleColStart = (columns.length >= 4 && r1 > 0.6) ? 1 : 0;
     const fullW = (columns[columns.length - 1].x + colWidth) - columns[titleColStart].x;
+    const tc = getAdaptiveTextColor(geom, rows[0].y);
 
-    // 1. TÍTULO MASTODÔNTICO
-    const titleRowsSpan = r2 > 0.5 ? 4 : 3;
-    const { size: titleSize, lines: titleLines } = fitHeadline(content.title, fullW, baseScale * (2.6 + r1 * 0.5), rowHeight * titleRowsSpan);
+    // 1. TÍTULO MASTODÔNTICO (MODULAR PURO)
+    const titleLines = wrapTextToWidth(content.title, fullW, baseScale * 2.4, '800');
+    let pureEndRow = 0;
     if (entropyFactor > 0.65 && seededRandom(s + 94) > 0.35) {
-      appendTapeStripHeadline(layerContent, titleLines, columns[titleColStart].x, rows[0].y, titleSize, 1.25, '800', entropyFactor, s, columns, colWidth);
+      appendTapeStripHeadline(layerContent, titleLines, columns[titleColStart].x, rows[0].y, baseScale * 2.2, 1.25, '800', entropyFactor, s, columns, colWidth);
+      pureEndRow = Math.min(rows.length - 1, titleLines.length);
     } else {
-      appendSvgText(layerContent, titleLines, columns[titleColStart].x, rows[0].y, titleSize, 1.06, '800', '#1d1d1f', 0, entropyFactor > 0.45);
+      pureEndRow = appendGridSnappedHeadline(layerContent, titleLines, columns[titleColStart].x, 0, rows, fullW, tc.title, entropyFactor);
     }
 
-    // 2. CITAÇÃO TIPOGRÁFICA COM RESPIRO
-    const quoteY = rows[0].y + (titleLines.length * titleSize * 1.06) + rowHeight * (0.4 + r2 * 0.5);
+    // 2. CITAÇÃO TIPOGRÁFICA NO MÓDULO SEGUINTE
+    const quoteRow = Math.min(rows.length - 1, pureEndRow);
+    const quoteY = rows[quoteRow].y;
     const quoteSize = Math.max(9, baseScale * (0.7 + r1 * 0.2));
     const quoteLines = wrapTextToWidth(quoteItem, fullW, quoteSize, '500');
-    
     const quoteColStart = r1 > 0.5 ? titleColStart : (titleColStart + 1 < columns.length ? titleColStart + 1 : titleColStart);
-    appendSvgText(layerContent, quoteLines, columns[quoteColStart].x, quoteY, quoteSize, 1.35, '500', '#1d1d1f');
+    appendSvgText(layerContent, quoteLines, columns[quoteColStart].x, quoteY, quoteSize, 1.35, '500', tc.title);
 
-    // Linha divisória de 1px puro suíço
+    // Divisor
     const divY = quoteY + (quoteLines.length * quoteSize * 1.35) + rowHeight * (0.35 + r1 * 0.3);
     const divider = document.createElementNS('http://www.w3.org/2000/svg', 'line');
     divider.setAttribute('x1', columns[0].x);
     divider.setAttribute('y1', divY);
     divider.setAttribute('x2', columns[columns.length - 1].x + colWidth);
     divider.setAttribute('y2', divY);
-    divider.setAttribute('stroke', entropyFactor > 0.7 ? '#e63946' : '#1d1d1f');
+    divider.setAttribute('stroke', entropyFactor > 0.7 ? '#e63946' : tc.title);
     divider.setAttribute('stroke-width', r2 > 0.8 || entropyFactor > 0.6 ? '3' : '1');
     layerContent.appendChild(divider);
 
-    // 3. COLUNAS DENSAS DE TEXTO CORRIDO
-    const bodyY = divY + rowHeight * (0.35 + r2 * 0.3);
+    // 3. IMAGENS OPCIONAIS SE O USUÁRIO SOLICITOU SLOTS
+    const effectiveCount = getEffectiveImageCount(0);
+    let bodyY = divY + rowHeight * (0.35 + r2 * 0.3);
+
+    if (effectiveCount > 0) {
+      const imgRow = rows.findIndex(r => r.y >= bodyY);
+      const safeImgRow = imgRow !== -1 ? imgRow : Math.floor(rows.length * 0.5);
+      const imgSpan = Math.max(2, Math.floor(rows.length * 0.25));
+      distributeCreativeImageSlots(layerFrames || layerContent, 0, columns.length, safeImgRow, imgSpan, effectiveCount, geom, entropyFactor, s, 'TYPO COMPANION', state.imageDistribution);
+      const nextRow = Math.min(rows.length - 1, safeImgRow + imgSpan);
+      bodyY = rows[nextRow].y + rowHeight * 0.3;
+    }
+
     const numCols = columns.length >= 6 ? (r1 > 0.5 ? 3 : 4) : (columns.length >= 4 ? 2 : 1);
     appendMultiColumnBody(layerContent, columns, 0, columns.length, colWidth, bodyY, h - margins.bottom - 5, bodyCopy, numCols, baseScale);
   }
@@ -936,42 +1477,44 @@ document.addEventListener('DOMContentLoaded', () => {
     const r1 = seededRandom(s + 60);
     const r2 = seededRandom(s + 61);
 
-    const splitPoint = Math.max(1, Math.floor(columns.length * (0.35 + r1 * 0.3)));
+    const effectiveCount = getEffectiveImageCount(3);
+    const tc = getAdaptiveTextColor(geom, rows[0].y);
 
-    // Quadro 1: Superior Esquerdo
-    const img1W = (columns[splitPoint - 1].x + colWidth) - columns[0].x;
-    const img1SpanRows = Math.max(2, Math.floor(rows.length * (0.2 + r2 * 0.2)));
-    const img1H = rowHeight * img1SpanRows;
-    appendSvgImageFrame(layerContent, columns[0].x, rows[0].y, img1W, img1H, 'GERSTNER QUAD A', entropyFactor);
-
-    // Título: Superior Direito
-    const titleX = columns[splitPoint].x;
+    // 1. TÍTULO NO TOPO (Headline Monumental Gerstner ampla, travada à grade modular)
+    const titleColStart = (columns.length >= 5 && r1 > 0.7) ? 1 : 0;
+    const titleX = columns[titleColStart].x;
     const titleW = (columns[columns.length - 1].x + colWidth) - titleX;
-    const { size: titleSize, lines: titleLines } = fitHeadline(content.title, titleW, baseScale * (1.6 + r1 * 0.3), img1H * 0.8);
+    const titleLines = wrapTextToWidth(content.title, titleW, baseScale * 2.2, '800');
+
+    let nextRow = 0;
     if (entropyFactor > 0.65) {
-      appendTapeStripHeadline(layerContent, titleLines, titleX, rows[0].y, titleSize, 1.25, '800', entropyFactor, s, columns, colWidth);
+      appendTapeStripHeadline(layerContent, titleLines, titleX, rows[0].y, baseScale * 2.0, 1.25, '800', entropyFactor, s, columns, colWidth);
+      nextRow = Math.min(rows.length - 1, titleLines.length);
     } else {
-      appendSvgText(layerContent, titleLines, titleX, rows[0].y, titleSize, 1.1, '800', '#1d1d1f', 0, entropyFactor > 0.45);
+      nextRow = appendGridSnappedHeadline(layerContent, titleLines, titleX, 0, rows, titleW, tc.title, entropyFactor);
     }
 
-    // Quadro 2: Escalonado no lado direito abaixo do título
-    const titleH = titleLines.length * titleSize * 1.1;
-    const img2Y = rows[0].y + titleH + rowHeight * (r1 > 0.5 ? 0.5 : 0);
-    const img2H = rowHeight * (r2 > 0.5 ? 3 : 2);
-    appendSvgImageFrame(layerContent, titleX, img2Y, titleW, img2H, 'GERSTNER QUAD B', entropyFactor);
-    
-    // Quadro 3 embaixo do Quadro 1 se houver espaço
-    if (r2 > 0.6 && img1SpanRows < rows.length - 3) {
-      const img3Y = rows[0].y + img1H + rowHeight * 0.5;
-      const img3H = rowHeight * 1.5;
-      appendSvgImageFrame(layerContent, columns[0].x, img3Y, img1W, img3H, 'QUAD C // DETAIL', entropyFactor);
+    const subRow = Math.min(rows.length - 1, nextRow);
+    const subSize = Math.max(getMinUnitSize(9), baseScale * 0.42);
+    const subY = rows[subRow].y;
+    const subLines = wrapTextToWidth(content.sub.toUpperCase(), titleW, subSize, '600');
+    appendSvgText(layerContent, subLines, titleX, subY, subSize, 1.25, '600', tc.sub);
+
+    // 2. IMAGENS COLOCADAS ESTRITAMENTE ABAIXO DO SUBTÍTULO
+    const imgStartRow = Math.min(rows.length - 1, subRow + 1);
+
+    const availableRows = rows.length - imgStartRow;
+    const imgSpan = (effectiveCount > 0 && availableRows >= 4)
+      ? Math.max(2, Math.min(availableRows - 2, Math.floor(rows.length * 0.38)))
+      : Math.max(1, availableRows - 2);
+
+    if (effectiveCount > 0 && imgStartRow < rows.length - 1) {
+      distributeCreativeImageSlots(layerFrames || layerContent, 0, columns.length, imgStartRow, imgSpan, effectiveCount, geom, entropyFactor, s, 'GERSTNER MODULAR', state.imageDistribution);
     }
 
-    const maxElemY = Math.max(rows[0].y + img1H, img2Y + img2H, (r2 > 0.6 ? rows[0].y + img1H + rowHeight * 2 : 0));
-    let bodyRow = rows.findIndex(r => r.y > maxElemY + rowHeight * 0.2);
-    if (bodyRow === -1) bodyRow = rows.length - 2;
-    
-    const bodyY = rows[bodyRow]?.y || (h - margins.bottom - 40);
+    // 3. CORPO DE TEXTO ESTRITAMENTE ABAIXO DAS IMAGENS
+    const bodyRow = (effectiveCount > 0) ? (imgStartRow + imgSpan) : imgStartRow;
+    const bodyY = rows[Math.min(rows.length - 1, bodyRow)]?.y || (rows[safeTitleRow].y + 30);
     const numCols = columns.length >= 6 ? (r1 > 0.5 ? 3 : 2) : (columns.length >= 4 ? 2 : 1);
     appendMultiColumnBody(layerContent, columns, 0, columns.length, colWidth, bodyY, h - margins.bottom - 5, bodyCopy, numCols, baseScale);
   }
@@ -1007,18 +1550,19 @@ document.addEventListener('DOMContentLoaded', () => {
     const { size: titleSize, lines: titleLines } = fitHeadline(content.title, invW - titlePadding * 2, baseScale * (2.0 + r1 * 0.5), invH * 0.55);
     appendSvgText(layerContent, titleLines, invX + titlePadding, invY + titlePadding, titleSize, 1.08, '800', '#ffffff', 0, entropyFactor > 0.45);
 
-    // Subtítulo Branco
     const subY = invY + titlePadding + (titleLines.length * titleSize * 1.08) + 4;
     const subLines = wrapTextToWidth(content.sub.toUpperCase(), invW - titlePadding * 2, titleSize * 0.35, '600');
     appendSvgText(layerContent, subLines, invX + titlePadding, subY, titleSize * 0.35, 1.25, '600', '#a1a1a6');
 
-    // Metade inferior: Imagem e Corpo em papel branco
+    // Metade inferior
+    const effectiveCount = getEffectiveImageCount(1);
     const botRow = Math.min(rows.length - 2, invRows + 1);
     const botY = rows[botRow]?.y || (invY + invH + rowHeight * 0.3);
     const splitPoint = Math.max(1, Math.floor(columns.length * (0.4 + r2 * 0.3)));
+    const botSpanRows = Math.max(2, rows.length - botRow - 1);
 
-    if (columns.length >= 4 && r1 > 0.3) {
-      appendSvgImageFrame(layerContent, columns[0].x, botY, (columns[splitPoint - 1].x + colWidth) - columns[0].x, rowHeight * (r2 > 0.5 ? 3 : 2), 'MONOCHROME DETAIL', entropyFactor);
+    if (effectiveCount > 0) {
+      distributeCreativeImageSlots(layerFrames || layerContent, 0, splitPoint, botRow, botSpanRows, effectiveCount, geom, entropyFactor, s, 'INVERTED DETAIL', state.imageDistribution);
       appendMultiColumnBody(layerContent, columns, splitPoint, columns.length - splitPoint, colWidth, botY, h - margins.bottom - 5, bodyCopy, 1, baseScale);
     } else {
       appendMultiColumnBody(layerContent, columns, 0, columns.length, colWidth, botY, h - margins.bottom - 5, bodyCopy, columns.length >= 4 ? 2 : 1, baseScale);
@@ -1034,7 +1578,6 @@ document.addEventListener('DOMContentLoaded', () => {
     const r1 = seededRandom(s + 80);
     const r2 = seededRandom(s + 81);
 
-    // Tarja Vermelha Construtivista (El Lissitzky)
     const redBarY = rows[Math.min(rows.length - 1, r1 > 0.5 ? 0 : 1)].y;
     const redBar = document.createElementNS('http://www.w3.org/2000/svg', 'rect');
     redBar.setAttribute('x', columns[0].x);
@@ -1044,25 +1587,28 @@ document.addEventListener('DOMContentLoaded', () => {
     redBar.setAttribute('fill', '#e63946');
     layerContent.appendChild(redBar);
 
-    // Título com forte contraste
     const titleY = redBarY + 12 + r2 * 10;
     const titleCol = (columns.length >= 4 && r2 > 0.6) ? 1 : 0;
     const titleX = columns[titleCol].x;
     const titleW = (columns[columns.length - 1].x + colWidth) - titleX;
+    const tc = getAdaptiveTextColor(geom, titleY);
 
     const { size: titleSize, lines: titleLines } = fitHeadline(content.title, titleW, baseScale * (2.4 + r1 * 0.4), rowHeight * 2.5);
     if (entropyFactor > 0.65) {
       appendTapeStripHeadline(layerContent, titleLines, titleX, titleY, titleSize, 1.25, '800', entropyFactor, s, columns, colWidth);
     } else {
-      appendSvgText(layerContent, titleLines, titleX, titleY, titleSize, 1.06, '800', '#1d1d1f', 0, entropyFactor > 0.45);
+      appendSvgText(layerContent, titleLines, titleX, titleY, titleSize, 1.06, '800', tc.title, 0, entropyFactor > 0.45);
     }
 
-    // Círculo focal Bauhaus
-    const circleRow = Math.floor(2 + r1 * 2);
+    const titleBottom = titleY + (titleLines.length * titleSize * 1.06) + 8;
+    const titleEndRow = rows.findIndex(r => r.y >= titleBottom);
+    const safeTitleRow = titleEndRow !== -1 ? titleEndRow : 3;
+
+    const circleRow = Math.min(rows.length - 2, Math.max(safeTitleRow, Math.floor(2 + r1 * 2)));
     const circleX = r2 > 0.5 ? columns[columns.length - 1].x : columns[0].x + colWidth;
-    const circleY = rows[Math.min(rows.length-1, circleRow)].y + rowHeight / 2;
+    const circleY = rows[Math.min(rows.length - 1, circleRow)].y + rowHeight / 2;
     const circleRadius = rowHeight * (0.6 + r1 * 0.4);
-    
+
     const circle = document.createElementNS('http://www.w3.org/2000/svg', 'circle');
     circle.setAttribute('cx', circleX);
     circle.setAttribute('cy', circleY);
@@ -1072,69 +1618,63 @@ document.addEventListener('DOMContentLoaded', () => {
     circle.setAttribute('stroke-width', '2');
     layerContent.appendChild(circle);
 
-    const imgStartRow = circleRow + 1;
-    if (imgStartRow < rows.length - 2) {
-      const imgY = rows[imgStartRow].y;
-      const imgW = ((columns[columns.length - 1].x + colWidth) - columns[0].x) * (0.5 + r2 * 0.3);
-      appendSvgImageFrame(layerContent, columns[0].x, imgY, imgW, rowHeight * (2 + r1 * 1.5), 'CONSTRUCTIVIST FORM', entropyFactor);
-      
-      const bodyY = imgY + rowHeight * (2 + r1 * 1.5) + rowHeight * 0.4;
-      appendMultiColumnBody(layerContent, columns, 0, columns.length, colWidth, bodyY, h - margins.bottom - 5, bodyCopy, columns.length >= 4 ? 2 : 1, baseScale);
+    const effectiveCount = getEffectiveImageCount(1);
+    const imgStartRow = Math.max(safeTitleRow, circleRow + 1);
+
+    if (effectiveCount > 0 && imgStartRow < rows.length - 2) {
+      const imgRowSpan = Math.max(2, Math.floor(rows.length * 0.28));
+      distributeCreativeImageSlots(layerFrames || layerContent, 0, Math.floor(columns.length * 0.75), imgStartRow, imgRowSpan, effectiveCount, geom, entropyFactor, s, 'CONSTRUCTIVIST FORM', state.imageDistribution);
+      const bodyRow = Math.min(rows.length - 1, imgStartRow + imgRowSpan);
+      appendMultiColumnBody(layerContent, columns, 0, columns.length, colWidth, rows[bodyRow].y, h - margins.bottom - 5, bodyCopy, columns.length >= 4 ? 2 : 1, baseScale);
     } else {
-      const bodyY = titleY + titleLines.length * titleSize * 1.1 + rowHeight * 0.5;
+      const bodyRow = Math.min(rows.length - 1, safeTitleRow);
+      const bodyY = rows[bodyRow]?.y || (titleBottom + 20);
       appendMultiColumnBody(layerContent, columns, 0, columns.length, colWidth, bodyY, h - margins.bottom - 5, bodyCopy, columns.length >= 4 ? 2 : 1, baseScale);
     }
   }
 
   // -------------------------------------------------------------------------
-  // ARQUÉTIPO 9: BRUTALISMO PÓS-DIGITAL (Matriz Celular com Coordenadas)
+  // ARQUÉTIPO 9: BRUTALISMO PÓS-DIGITAL (Matriz Estrutural de Dados)
   // -------------------------------------------------------------------------
   function renderBrutalistDataMatrix(geom, content, bodyCopy, statItem, baseScale, s, entropyFactor = 0) {
     const { w, h, margins, columns, rows, colWidth, rowHeight } = geom;
 
     const r1 = seededRandom(s + 90);
     const r2 = seededRandom(s + 91);
-    const modPattern = Math.floor(2 + r1 * 3);
 
-    columns.forEach((col, cIdx) => {
-      rows.forEach((row, rIdx) => {
-        if ((cIdx + rIdx) % modPattern === 0) {
-          const coordText = document.createElementNS('http://www.w3.org/2000/svg', 'text');
-          coordText.setAttribute('x', col.x + 2);
-          coordText.setAttribute('y', row.y + 7);
-          coordText.setAttribute('font-family', 'JetBrains Mono, monospace');
-          coordText.setAttribute('font-size', '4.5');
-          coordText.setAttribute('fill', r2 > 0.7 || entropyFactor > 0.6 ? '#e63946' : '#c7c7cc');
-          coordText.textContent = `[${String(cIdx + 1).padStart(2, '0')}.${String(rIdx + 1).padStart(2, '0')}]`;
-          layerContent.appendChild(coordText);
-        }
-      });
-    });
-
+    // 1. TÍTULO NO TOPO (Limpo, sem coordenadas invasivas sobre o texto)
     const titleStartCol = (columns.length >= 4 && r2 > 0.5) ? 1 : 0;
     const titleW = (columns[columns.length - 1].x + colWidth) - columns[titleStartCol].x;
     const titleRowStart = r1 > 0.8 ? 1 : 0;
     const titleY = rows[titleRowStart].y;
+    const tc = getAdaptiveTextColor(geom, titleY);
+
     const { size: titleSize, lines: titleLines } = fitHeadline(content.title, titleW, baseScale * (1.9 + r1 * 0.4), rowHeight * 2.5);
     if (entropyFactor > 0.65) {
       appendTapeStripHeadline(layerContent, titleLines, columns[titleStartCol].x, titleY, titleSize, 1.25, '800', entropyFactor, s, columns, colWidth);
     } else {
-      appendSvgText(layerContent, titleLines, columns[titleStartCol].x, titleY, titleSize, 1.08, '800', '#1d1d1f', 0, entropyFactor > 0.45);
+      appendSvgText(layerContent, titleLines, columns[titleStartCol].x, titleY, titleSize, 1.08, '800', tc.title, 0, entropyFactor > 0.45);
     }
 
-    const tableRowStart = titleRowStart + 2 + (r1 > 0.5 ? 1 : 0);
-    if (tableRowStart < rows.length - 2) {
-      const tableY = rows[tableRowStart].y;
-      const tableH = rowHeight * (2 + r2 * 2);
-      const tableColStart = (columns.length >= 6 && r1 > 0.6) ? 2 : 0;
-      const tableW = (columns[columns.length - 1].x + colWidth) - columns[tableColStart].x;
-      
-      appendSvgImageFrame(layerContent, columns[tableColStart].x, tableY, tableW, tableH, `DATA ARRAY // ${statItem.num} // RAW SPEC`, entropyFactor);
-      
-      const bodyY = tableY + tableH + rowHeight * 0.3;
-      appendMultiColumnBody(layerContent, columns, 0, columns.length, colWidth, bodyY, h - margins.bottom - 5, bodyCopy, columns.length >= 4 ? (r2 > 0.5 ? 3 : 2) : 1, baseScale);
+    const subSize = Math.max(getMinUnitSize(10), titleSize * 0.35);
+    const subY = titleY + (titleLines.length * titleSize * 1.08) + 4;
+    const subLines = wrapTextToWidth(content.sub.toUpperCase(), titleW, subSize, '600');
+    appendSvgText(layerContent, subLines, columns[titleStartCol].x, subY, subSize, 1.25, '600', tc.sub);
+
+    const titleBottom = subY + (subLines.length * subSize * 1.25) + 6;
+    const titleEndRow = rows.findIndex(r => r.y >= titleBottom);
+    const safeTitleRow = titleEndRow !== -1 ? titleEndRow : (titleRowStart + 2);
+    const tableRowStart = Math.max(safeTitleRow, titleRowStart + 2);
+
+    const effectiveCount = getEffectiveImageCount(1);
+    if (effectiveCount > 0 && tableRowStart < rows.length - 2) {
+      const tableH_Rows = Math.max(2, Math.floor(rows.length * 0.28));
+      distributeCreativeImageSlots(layerFrames || layerContent, 0, columns.length, tableRowStart, tableH_Rows, effectiveCount, geom, entropyFactor, s, 'DATA ARRAY', state.imageDistribution);
+      const bodyRow = Math.min(rows.length - 1, tableRowStart + tableH_Rows);
+      appendMultiColumnBody(layerContent, columns, 0, columns.length, colWidth, rows[bodyRow].y, h - margins.bottom - 5, bodyCopy, columns.length >= 4 ? (r2 > 0.5 ? 3 : 2) : 1, baseScale);
     } else {
-      const bodyY = titleY + titleLines.length * titleSize * 1.1 + rowHeight;
+      const bodyRow = Math.min(rows.length - 1, safeTitleRow);
+      const bodyY = rows[bodyRow]?.y || (titleBottom + 20);
       appendMultiColumnBody(layerContent, columns, 0, columns.length, colWidth, bodyY, h - margins.bottom - 5, bodyCopy, columns.length >= 4 ? 2 : 1, baseScale);
     }
   }
@@ -1148,18 +1688,26 @@ document.addEventListener('DOMContentLoaded', () => {
     const r1 = seededRandom(s + 100);
     const r2 = seededRandom(s + 101);
     const fullW = (columns[columns.length - 1].x + colWidth) - columns[0].x;
-    
+
     const titleY = rows[0].y + (r1 > 0.5 ? rowHeight * 0.5 : 0);
+    const tc = getAdaptiveTextColor(geom, titleY);
     const { size: titleSize, lines: titleLines } = fitHeadline(content.title, fullW, baseScale * (1.8 + r2 * 0.4), rowHeight * 2.5);
-    appendSvgText(layerContent, titleLines, columns[0].x, titleY, titleSize, 1.15, '700', '#1d1d1f');
+    appendSvgText(layerContent, titleLines, columns[0].x, titleY, titleSize, 1.15, '700', tc.title);
 
-    const imgStartRow = r1 > 0.5 ? 2 : 3;
-    const imgY = rows[Math.min(rows.length-1, imgStartRow)].y;
-    const imgH = rowHeight * (2 + r2 * 2);
-    const imgIndent = r2 > 0.6 ? colWidth * 0.2 : 0;
-    appendSvgImageFrame(layerContent, columns[0].x + imgIndent, imgY, fullW - imgIndent * 2, imgH, 'CANONICAL WOODCUT FRAME', entropyFactor);
+    const titleBottom = titleY + (titleLines.length * titleSize * 1.15) + 6;
+    const titleEndRow = rows.findIndex(r => r.y >= titleBottom);
+    const safeTitleRow = titleEndRow !== -1 ? titleEndRow : 3;
+    const imgStartRow = Math.max(safeTitleRow, 2);
 
-    const bodyY = imgY + imgH + rowHeight * (0.4 + r1 * 0.3);
+    const effectiveCount = getEffectiveImageCount(1);
+    const imgRowSpan = Math.max(2, Math.min(rows.length - imgStartRow - 2, Math.floor(rows.length * 0.3)));
+
+    if (effectiveCount > 0 && imgStartRow < rows.length - 1) {
+      distributeCreativeImageSlots(layerFrames || layerContent, 0, columns.length, imgStartRow, imgRowSpan, effectiveCount, geom, entropyFactor, s, 'CANONICAL FRAME', state.imageDistribution);
+    }
+
+    const bodyRowStart = (effectiveCount > 0) ? Math.min(rows.length - 1, imgStartRow + imgRowSpan) : imgStartRow;
+    const bodyY = rows[bodyRowStart]?.y || (rows[imgStartRow].y + 20);
     const numCols = columns.length >= 4 ? (r2 > 0.5 ? 2 : 3) : 1;
     appendMultiColumnBody(layerContent, columns, 0, columns.length, colWidth, bodyY, h - margins.bottom - 5, bodyCopy, numCols, baseScale);
   }
@@ -1182,21 +1730,27 @@ document.addEventListener('DOMContentLoaded', () => {
     const spineY = rows[rows.length - 1].y + rowHeight;
     const spineH = spineY - rows[0].y;
     const spineFontSize = baseScale * (2.8 + r2 * 0.6);
+    const tc = getAdaptiveTextColor(geom, rows[0].y);
 
-    appendSvgVerticalHeadline(layerContent, content.title, spineX, spineY, spineH, spineFontSize, '800', '#1d1d1f', entropyFactor > 0.7 ? 'red' : (entropyFactor > 0.4 ? 'black' : false), -90);
+    appendSvgVerticalHeadline(layerContent, content.title, spineX, spineY, spineH, spineFontSize, '800', tc.title, entropyFactor > 0.7 ? 'red' : (entropyFactor > 0.4 ? 'black' : false), -90);
 
     const galX = columns[galleryStartCol].x;
     const galW = (columns[galleryStartCol + gallerySpanCols - 1].x + colWidth) - galX;
 
-    const imgH = rowHeight * Math.max(2, Math.floor(rows.length * (0.35 + r1 * 0.2)));
-    appendSvgImageFrame(layerContent, galX, rows[0].y, galW, imgH, 'AVANT-GARDE 90° // HERO VISION', entropyFactor);
+    const effectiveCount = getEffectiveImageCount(1);
+    const imgRowSpan = Math.max(2, Math.floor(rows.length * (0.35 + r1 * 0.2)));
 
-    const midRow = Math.min(rows.length - 2, Math.max(2, Math.floor(rows.length * 0.5)));
+    if (effectiveCount > 0) {
+      distributeCreativeImageSlots(layerFrames || layerContent, galleryStartCol, gallerySpanCols, 0, imgRowSpan, effectiveCount, geom, entropyFactor, s, 'AVANT-GARDE 90°', state.imageDistribution);
+    }
+
+    const safeMidRow = (effectiveCount > 0) ? Math.max(imgRowSpan, 2) : 1;
+    const midRow = Math.min(rows.length - 3, safeMidRow);
     const midY = rows[midRow].y;
 
     const subSize = Math.max(7, baseScale * 0.48);
     const subLines = wrapTextToWidth(content.sub.toUpperCase(), galW * 0.65, subSize, '600');
-    appendSvgText(layerContent, subLines, galX, midY, subSize, 1.25, '600', '#1d1d1f');
+    appendSvgText(layerContent, subLines, galX, midY, subSize, 1.25, '600', tc.sub);
 
     const statW = galW * 0.3;
     const statX = galX + galW - statW;
@@ -1221,31 +1775,29 @@ document.addEventListener('DOMContentLoaded', () => {
     const titleX = columns[titleStartCol].x;
     const titleMaxW = (columns[columns.length - 1].x + colWidth) - titleX;
     const titleY = rows[0].y;
+    const tc = getAdaptiveTextColor(geom, titleY);
 
     const { size: titleSize, lines: titleLines } = fitHeadline(content.title, titleMaxW * 0.9, baseScale * (2.2 + r2 * 0.4), rowHeight * 3.2);
     appendTapeStripHeadline(layerContent, titleLines, titleX, titleY, titleSize, 1.28, '800', entropyFactor, s, columns, colWidth);
 
+    const subSize = Math.max(getMinUnitSize(8.5), titleSize * 0.32);
     const subY = titleY + (titleLines.length * titleSize * 1.28) + 8;
-    const subLines = wrapTextToWidth(content.sub.toUpperCase(), titleMaxW, Math.max(6.5, titleSize * 0.35), '600', 'JetBrains Mono, monospace');
-    appendSvgText(layerContent, subLines, titleX, subY, Math.max(6.5, titleSize * 0.35), 1.25, '600', '#6e6e73');
+    const subLines = wrapTextToWidth(content.sub.toUpperCase(), titleMaxW, subSize, '600', 'JetBrains Mono, monospace');
+    appendSvgText(layerContent, subLines, titleX, subY, subSize, 1.25, '600', tc.sub);
 
-    const imgRowStart = Math.min(rows.length - 3, Math.max(3, Math.floor(rows.length * 0.45)));
-    const imgY = rows[imgRowStart].y;
-    const imgH = rowHeight * Math.max(2, Math.floor(rows.length * 0.28));
+    const titleBottom = subY + (subLines.length * subSize * 1.25) + 6;
+    const titleEndRow = rows.findIndex(r => r.y >= titleBottom);
+    const safeTitleRow = titleEndRow !== -1 ? titleEndRow : 3;
+    const imgRowStart = Math.min(rows.length - 3, Math.max(safeTitleRow, 3));
+    const imgRowSpan = Math.max(2, Math.floor(rows.length * 0.28));
 
-    if (columns.length >= 6 && r1 > 0.4) {
-      const splitCol = Math.floor(columns.length * 0.6);
-      const w1 = (columns[splitCol - 1].x + colWidth) - columns[0].x;
-      const x2 = columns[splitCol].x;
-      const w2 = (columns[columns.length - 1].x + colWidth) - x2;
-      appendSvgImageFrame(layerContent, columns[0].x, imgY, w1, imgH, 'PRIMARY VISUAL // SHIFT', entropyFactor);
-      appendStatBadge(layerContent, x2, imgY, w2, imgH, statItem.num, statItem.label, baseScale, entropyFactor);
-    } else {
-      appendSvgImageFrame(layerContent, columns[0].x, imgY, (columns[columns.length - 1].x + colWidth) - columns[0].x, imgH, 'BRUTALIST PANORAMA', entropyFactor);
+    const effectiveCount = getEffectiveImageCount(1);
+    if (effectiveCount > 0 && imgRowStart < rows.length - 1) {
+      distributeCreativeImageSlots(layerFrames || layerContent, 0, columns.length, imgRowStart, imgRowSpan, effectiveCount, geom, entropyFactor, s, 'BRUTALIST TAPE', state.imageDistribution);
     }
 
-    const bodyRow = imgRowStart + Math.max(2, Math.floor(imgH / rowHeight)) + 1;
-    const bodyY = rows[Math.min(rows.length - 2, bodyRow)]?.y || (imgY + imgH + 12);
+    const bodyRow = imgRowStart + (effectiveCount > 0 ? imgRowSpan : 0);
+    const bodyY = rows[Math.min(rows.length - 2, bodyRow)]?.y || (rows[imgRowStart].y + 30);
     appendMultiColumnBody(layerContent, columns, 0, columns.length, colWidth, bodyY, h - margins.bottom - 5, bodyCopy, columns.length >= 4 ? 3 : 2, baseScale);
   }
 
@@ -1258,23 +1810,26 @@ document.addEventListener('DOMContentLoaded', () => {
     const r1 = seededRandom(s + 130);
     const r2 = seededRandom(s + 131);
 
+    const effectiveCount = getEffectiveImageCount(1);
     const imgRow = Math.min(rows.length - 3, Math.max(1, Math.floor(rows.length * 0.25)));
-    const imgY = rows[imgRow].y;
-    const imgH = rowHeight * (r1 > 0.5 ? 3 : 2.5);
-    const imgW = (columns[columns.length - 1].x + colWidth) - columns[0].x;
-    appendSvgImageFrame(layerContent, columns[0].x, imgY, imgW, imgH, 'HORIZONTAL AXIS // LOOKBOOK 2026', entropyFactor);
+    const imgRowSpan = Math.max(2, Math.floor(rows.length * 0.3));
+
+    if (effectiveCount > 0) {
+      distributeCreativeImageSlots(layerFrames || layerContent, 0, columns.length, imgRow, imgRowSpan, effectiveCount, geom, entropyFactor, s, 'HORIZONTAL AXIS', state.imageDistribution);
+    }
 
     const crossColIdx = Math.max(1, Math.min(columns.length - 2, Math.floor(columns.length * (r2 > 0.5 ? 0.35 : 0.65))));
     const crossX = columns[crossColIdx].x + colWidth * 0.5;
     const crossH = (rows[rows.length - 1].y + rowHeight) - rows[0].y;
     const crossY = rows[rows.length - 1].y + rowHeight;
     const titleSize = baseScale * (2.4 + r1 * 0.5);
+    const tc = getAdaptiveTextColor(geom, rows[0].y);
 
-    appendSvgVerticalHeadline(layerContent, content.title, crossX, crossY, crossH, titleSize, '800', '#1d1d1f', entropyFactor > 0.7 ? 'red' : 'black', -90);
+    appendSvgVerticalHeadline(layerContent, content.title, crossX, crossY, crossH, titleSize, '800', tc.title, entropyFactor > 0.7 ? 'red' : 'black', -90);
 
     const focalCircle = document.createElementNS('http://www.w3.org/2000/svg', 'circle');
     focalCircle.setAttribute('cx', crossX);
-    focalCircle.setAttribute('cy', imgY + imgH / 2);
+    focalCircle.setAttribute('cy', rows[imgRow].y + (rowHeight * imgRowSpan) / 2);
     focalCircle.setAttribute('r', rowHeight * 0.85);
     focalCircle.setAttribute('fill', 'none');
     focalCircle.setAttribute('stroke', '#e63946');
@@ -1283,7 +1838,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
     const crossMark = document.createElementNS('http://www.w3.org/2000/svg', 'text');
     crossMark.setAttribute('x', crossX);
-    crossMark.setAttribute('y', imgY + imgH / 2 + 4);
+    crossMark.setAttribute('y', rows[imgRow].y + (rowHeight * imgRowSpan) / 2 + 4);
     crossMark.setAttribute('font-family', 'JetBrains Mono, monospace');
     crossMark.setAttribute('font-size', '14');
     crossMark.setAttribute('font-weight', '700');
@@ -1296,7 +1851,7 @@ document.addEventListener('DOMContentLoaded', () => {
     const rightStartCol = crossColIdx + 1;
     const rightCols = columns.length - rightStartCol;
 
-    const bodyY = imgY + imgH + rowHeight * 0.5;
+    const bodyY = rows[imgRow].y + (rowHeight * imgRowSpan) + rowHeight * 0.5;
     if (leftCols >= 2) {
       appendMultiColumnBody(layerContent, columns, 0, leftCols, colWidth, bodyY, h - margins.bottom - 5, bodyCopy, 1, baseScale);
     }
@@ -1309,13 +1864,6 @@ document.addEventListener('DOMContentLoaded', () => {
     }
   }
 
-  // =========================================================================
-  // FUNÇÕES AUXILIARES DE RENDERIZAÇÃO VETORIAL REUTILIZÁVEIS
-  // =========================================================================
-
-  // -------------------------------------------------------------------------
-  // TIPOGRAFIA VERTICAL 90° / -90° (VANGUARDA EDITORIAL / RUNNING SPINE)
-  // -------------------------------------------------------------------------
   function appendSvgVerticalHeadline(parent, text, x, y, height, fontSize, fontWeight, color, bgStrip = false, dir = -90) {
     if (state.layoutManifest && (parent === layerContent || (parent && parent.closest && parent.closest('#LAYER_CONTENT')) || parent === null)) {
       state.layoutManifest.push({
@@ -1459,6 +2007,7 @@ document.addEventListener('DOMContentLoaded', () => {
     }
 
     const step = fontSize * lineSpacing;
+    const capHeight = fontSize * 0.72; // Altura real de caixa alta da fonte Inter para ancoragem precisa à hang-line
 
     // Eco Tipográfico / Ghosting (David Carson / Ray Gun - Desconstrução Pós-Digital)
     if (ghostEffect) {
@@ -1471,7 +2020,7 @@ document.addEventListener('DOMContentLoaded', () => {
       lines.forEach((lineStr, idx) => {
         const tspan = document.createElementNS('http://www.w3.org/2000/svg', 'tspan');
         tspan.setAttribute('x', x + fontSize * 0.1);
-        tspan.setAttribute('y', startY + fontSize + (idx * step) + fontSize * 0.08);
+        tspan.setAttribute('y', (startY + capHeight + (idx * step) + fontSize * 0.08).toFixed(2));
         tspan.textContent = lineStr;
         ghostEl.appendChild(tspan);
       });
@@ -1487,7 +2036,8 @@ document.addEventListener('DOMContentLoaded', () => {
     lines.forEach((lineStr, idx) => {
       const tspan = document.createElementNS('http://www.w3.org/2000/svg', 'tspan');
       tspan.setAttribute('x', x);
-      tspan.setAttribute('y', startY + fontSize + (idx * step));
+      // Ancoragem estrita à hang-line da grade: o topo das letras maiúsculas toca exatamente startY
+      tspan.setAttribute('y', (startY + capHeight + (idx * step)).toFixed(2));
       tspan.textContent = lineStr;
       textEl.appendChild(tspan);
     });
@@ -1575,7 +2125,8 @@ document.addEventListener('DOMContentLoaded', () => {
       group.appendChild(vertTag);
     }
 
-    if (parent) parent.appendChild(group);
+    const targetLayer = layerFrames || parent;
+    if (targetLayer) targetLayer.appendChild(group);
   }
 
   function appendStatBadge(parent, x, y, width, height, statNum, statLabel, baseScale, entropyFactor = 0) {
@@ -1634,7 +2185,7 @@ document.addEventListener('DOMContentLoaded', () => {
     group.appendChild(numText);
 
     // Dynamic sizing for the label so long words don't break outside
-    let lblSize = Math.max(5, baseScale * 0.35);
+    let lblSize = Math.max(getMinUnitSize(5.5), baseScale * 0.28);
     measureCtx.font = `600 ${lblSize}px JetBrains Mono, monospace`;
     const words = statLabel.split(/\s+/);
     const longestWordW = Math.max(...words.map(w => measureCtx.measureText(w).width));
@@ -1649,83 +2200,579 @@ document.addEventListener('DOMContentLoaded', () => {
     if (parent) parent.appendChild(group);
   }
 
-  function calculateGridSnappedColumns(columns, startCol, numCols, preferredCount) {
-    if (!columns || columns.length === 0 || numCols <= 1) {
-      return [{ start: startCol, end: startCol }];
-    }
-    if (numCols === 2) {
-      return [
-        { start: startCol, end: startCol },
-        { start: startCol + 1, end: startCol + 1 }
-      ];
-    }
-    if (numCols === 3) {
-      return [
-        { start: startCol, end: startCol },
-        { start: startCol + 1, end: startCol + 1 },
-        { start: startCol + 2, end: startCol + 2 }
-      ];
+  function calculateGridSnappedColumns(columns, startCol, numCols, preferredCount, unit = state.unit) {
+    if (!columns || columns.length === 0 || numCols <= 0) return [];
+
+    const colWidth = columns[0].width;
+    const minReadableW = (unit === 'mm') ? 38.0 : ((unit === 'cm') ? 3.8 : ((unit === 'pt') ? 108.0 : 140.0));
+
+    // Se o chamador quer explicitamente 1 coluna, retorne span total dos módulos
+    if (preferredCount <= 1 || numCols === 1) {
+      return [{ start: startCol, end: startCol + numCols - 1 }];
     }
 
-    // Para numCols >= 4, colunas de texto de corpo exigem span >= 2 para leitura confortável
-    const validDividers = [];
-    for (let span = 2; span <= numCols; span++) {
-      if (numCols % span === 0) {
-        const count = numCols / span;
-        if (count >= 1 && count <= 5) {
-          validDividers.push({ count, span });
+    // Se uma única coluna de grid já é larga o suficiente (ex: layout de 2 ou 3 colunas largas)
+    if (colWidth >= minReadableW) {
+      const count = Math.min(numCols, preferredCount);
+      const span = Math.floor(numCols / count);
+      const res = [];
+      for (let i = 0; i < count; i++) {
+        const s = startCol + i * span;
+        const e = (i < count - 1) ? (s + span - 1) : (startCol + numCols - 1);
+        res.push({ start: s, end: e });
+      }
+      return res;
+    }
+
+    // Caso padrão: módulos estreitos (colWidth < minReadableW, ex: grids de 6, 8, 12 colunas)
+    // Cada coluna de texto de corpo DEVE ter span >= 2 módulos para ter medida de leitura adequada
+    const minSpan = 2;
+    const maxPossibleCols = Math.floor(numCols / minSpan);
+
+    if (maxPossibleCols <= 1) {
+      // Se não dá para ter 2 colunas de pelo menos 2 módulos (ex: numCols = 2 ou 3),
+      // funde em 1 coluna sólida e legível cobrindo todos os módulos disponíveis!
+      return [{ start: startCol, end: startCol + numCols - 1 }];
+    }
+
+    const targetCount = Math.min(preferredCount, maxPossibleCols);
+
+    // Procura divisão modular exata
+    const valid = [];
+    for (let count = targetCount; count >= 2; count--) {
+      if (numCols % count === 0) {
+        const span = numCols / count;
+        if (span >= minSpan) {
+          valid.push({ count, span });
         }
       }
     }
 
-    // Se numCols for ímpar/primo sem divisor (ex: 5, 7, 11, 13), cria divisão simétrica com vão/respiro no centro
-    if (validDividers.length === 0 || validDividers.every(d => d.count === 1)) {
-      if (numCols > 3 && (numCols - 1) % 2 === 0) {
-        const halfSpan = (numCols - 1) / 2;
-        return [
-          { start: startCol, end: startCol + halfSpan - 1 },
-          { start: startCol + halfSpan + 1, end: startCol + numCols - 1 }
-        ];
+    if (valid.length > 0) {
+      const best = valid[0];
+      const res = [];
+      for (let i = 0; i < best.count; i++) {
+        const s = startCol + i * best.span;
+        res.push({ start: s, end: s + best.span - 1 });
       }
-      return [{ start: startCol, end: startCol + numCols - 1 }];
+      return res;
     }
 
-    // Ordena pelo count mais próximo da preferência do arquétipo; em empate, prefere colunas com maior respiro
-    validDividers.sort((a, b) => {
-      const diffA = Math.abs(a.count - preferredCount);
-      const diffB = Math.abs(b.count - preferredCount);
-      if (diffA !== diffB) return diffA - diffB;
-      return b.span - a.span;
-    });
-    const best = validDividers[0];
-
-    const result = [];
-    for (let i = 0; i < best.count; i++) {
-      const s = startCol + i * best.span;
-      const e = s + best.span - 1;
-      result.push({ start: s, end: e });
+    // Caso ímpar (ex: 5 módulos com target 2) -> Divisão simétrica com canal central de respiro suíço
+    if (numCols === 5 && targetCount === 2) {
+      return [
+        { start: startCol, end: startCol + 1 },
+        { start: startCol + 3, end: startCol + 4 }
+      ];
     }
 
-    return result;
+    // Fallback proporcional perfeitamente snappado aos módulos
+    const spanA = Math.floor(numCols / targetCount);
+    const res = [];
+    let curr = startCol;
+    for (let i = 0; i < targetCount; i++) {
+      const span = (i < targetCount - 1) ? spanA : (startCol + numCols - curr);
+      res.push({ start: curr, end: curr + span - 1 });
+      curr += span;
+    }
+    return res;
   }
 
+  // Helper para renderizar linhas de texto empacotadas no SVG com tspan
+  function renderTextLines(parent, lines, x, startY, lineHeight, fontSize, fontWeight, color, opacity, maxY, letterSpacing) {
+    if (!parent || !lines || lines.length === 0) return startY;
+    const textEl = document.createElementNS('http://www.w3.org/2000/svg', 'text');
+    textEl.setAttribute('font-family', 'Inter, -apple-system, sans-serif');
+    textEl.setAttribute('font-size', fontSize.toFixed(2));
+    if (fontWeight) textEl.setAttribute('font-weight', fontWeight);
+    if (color) textEl.setAttribute('fill', color);
+    if (opacity) textEl.setAttribute('opacity', opacity.toString());
+    if (letterSpacing) textEl.setAttribute('letter-spacing', letterSpacing);
+
+    let curY = startY;
+    lines.forEach(l => {
+      if (curY <= maxY) {
+        const tspan = document.createElementNS('http://www.w3.org/2000/svg', 'tspan');
+        tspan.setAttribute('x', x);
+        tspan.setAttribute('y', curY.toFixed(2));
+        tspan.textContent = l;
+        textEl.appendChild(tspan);
+        curY += lineHeight;
+      }
+    });
+    parent.appendChild(textEl);
+    return curY;
+  }
+
+  // =========================================================================
+  // MOTOR CRIATIVO DE DIAGRAMAÇÃO TIPOGRÁFICA MULTICOLUNAR
+  // Quebra a monotonia de colunas idênticas com Lead monumental (Tamanho X),
+  // respiros suíços (negative space ativo), diálogo bilíngue e corpo (Tamanho Y).
+  // Inspirado em Josef Müller-Brockmann, Emil Ruder & Karl Gerstner.
+  // =========================================================================
   function appendMultiColumnBody(parent, columns, startCol, numCols, colWidth, startY, maxY, textCopy, preferredCols, baseScale) {
     if (!columns || columns.length === 0 || numCols <= 0) return;
 
     // Calcula colunas travadas estritamente aos módulos do grid
-    const textColRanges = calculateGridSnappedColumns(columns, startCol, numCols, preferredCols || 3);
-    const bodySize = Math.max(5.5, baseScale * 0.44);
-    const bodyLineH = bodySize * 1.45;
+    const textColRanges = calculateGridSnappedColumns(columns, startCol, numCols, preferredCols || 3, state.unit);
+    const totalCols = textColRanges.length;
+    if (totalCols === 0) return;
 
+    // Determina o modo ativo de hierarquia tipográfica
+    let mode = state.textHierarchy || 'creative_auto';
+    if (mode === 'creative_auto') {
+      const roll = seededRandom(state.seed + startCol * 17 + 89);
+      if (totalCols >= 3) {
+        if (roll < 0.46) {
+          mode = 'lead_and_body';       // 46%: Lead Monumental Tam. X + Respiro + Corpo Tam. Y (Pôster Swiss Style)
+        } else if (roll < 0.72) {
+          mode = 'bilingual_dialogue';  // 26%: Diálogo de Escalas Bilíngue (Grid Systems Müller-Brockmann)
+        } else if (roll < 0.87) {
+          mode = 'quote_callout';        // 15%: Citação Destaque com Fio de Acento + Coluna de Apoio
+        } else {
+          mode = 'asymmetric_breathing'; // 13%: Assimetria com Espaço Negativo Ativo & Índice
+        }
+      } else if (totalCols === 2) {
+        if (roll < 0.65) {
+          mode = 'lead_and_body';
+        } else {
+          mode = 'bilingual_dialogue';
+        }
+      } else {
+        mode = 'lead_and_body';
+      }
+    }
+
+    // Escalas Tipográficas Harmoniosas (baseScale derivado da prancheta)
+    const minBody = getMinUnitSize(10.5);
+    const bodySize = Math.max(minBody, baseScale * 0.48);
+    const bodyLineH = bodySize * 1.42;
+
+    const minLead = getMinUnitSize(16.5);
+    const leadSize = Math.max(minLead, baseScale * 0.95);
+    const leadLineH = leadSize * 1.20;
+
+    const subLabelSize = Math.max(getMinUnitSize(6.5), baseScale * 0.28);
+    const tc = (typeof getAdaptiveTextColor === 'function') ? getAdaptiveTextColor(null, startY) : { body: '#1d1d1f' };
+    const textColor = tc.body || '#1d1d1f';
+    const accentColor = '#e02424';
+
+    if (mode === 'lead_and_body') {
+      renderModeLeadAndBody(parent, columns, textColRanges, colWidth, startY, maxY, textCopy, baseScale, leadSize, leadLineH, bodySize, bodyLineH, subLabelSize, textColor, accentColor);
+    } else if (mode === 'bilingual_dialogue') {
+      renderModeBilingualDialogue(parent, columns, textColRanges, colWidth, startY, maxY, textCopy, baseScale, leadSize, bodySize, bodyLineH, subLabelSize, textColor, accentColor);
+    } else if (mode === 'quote_callout') {
+      renderModeQuoteCallout(parent, columns, textColRanges, colWidth, startY, maxY, textCopy, baseScale, bodySize, bodyLineH, subLabelSize, textColor, accentColor);
+    } else if (mode === 'asymmetric_breathing') {
+      renderModeAsymmetricBreathing(parent, columns, textColRanges, colWidth, startY, maxY, textCopy, baseScale, bodySize, bodyLineH, subLabelSize, textColor, accentColor);
+    } else {
+      renderModeClassicColumns(parent, columns, textColRanges, colWidth, startY, maxY, textCopy, bodySize, bodyLineH, textColor);
+    }
+  }
+
+  // 1. MODO LEAD MONUMENTAL (TAMANHO X) + RESPIRO SUÍÇO + CORPO (TAMANHO Y)
+  // Referência Exata: Pôster Swiss Style de Josef Müller-Brockmann
+  function renderModeLeadAndBody(parent, columns, textColRanges, colWidth, startY, maxY, textCopy, baseScale, leadSize, leadLineH, bodySize, bodyLineH, subLabelSize, textColor, accentColor) {
+    const totalCols = textColRanges.length;
+
+    if (totalCols >= 3) {
+      // COLUNA 0: LEAD MONUMENTAL (TAMANHO X)
+      const r0 = textColRanges[0];
+      const c0Start = Math.max(0, Math.min(columns.length - 1, r0.start));
+      const c0End = Math.max(0, Math.min(columns.length - 1, r0.end));
+      const col0X = columns[c0Start].x;
+      const fullCol0W = (columns[c0End].x + colWidth) - col0X;
+      const col0W = Math.max(10, fullCol0W - Math.max(1.5, state.gutter * 0.25));
+      const col0H = Math.max(20, maxY - startY);
+
+      const leadIndex = (state.seed + 1) % leadPhrases.length;
+      const leadText = leadPhrases[leadIndex];
+      const leadLines = wrapTextToWidth(leadText, col0W, leadSize, '600');
+
+      if (state.layoutManifest) {
+        state.layoutManifest.push({
+          type: 'leadColumn',
+          x: col0X,
+          y: startY,
+          width: fullCol0W,
+          height: col0H,
+          text: leadText,
+          fontSize: leadSize,
+          fontWeight: '600'
+        });
+      }
+
+      renderTextLines(parent, leadLines, col0X, startY + (leadSize * 0.72), leadLineH, leadSize, '600', textColor, 0.96, maxY, '-0.02em');
+
+      // COLUNAS INTERMEDIÁRIAS: RESPIRO SUÍÇO (NEGATIVE SPACE ATIVO) + MICRO-ETIQUETA
+      for (let midIdx = 1; midIdx < totalCols - 1; midIdx++) {
+        const rMid = textColRanges[midIdx];
+        const cMidStart = Math.max(0, Math.min(columns.length - 1, rMid.start));
+        const cMidEnd = Math.max(0, Math.min(columns.length - 1, rMid.end));
+        const colMidX = columns[cMidStart].x;
+        const fullColMidW = (columns[cMidEnd].x + colWidth) - colMidX;
+        const colMidW = Math.max(10, fullColMidW - Math.max(1.5, state.gutter * 0.25));
+
+        const midLabel = subLabels[(state.seed + midIdx) % subLabels.length];
+
+        if (state.layoutManifest) {
+          state.layoutManifest.push({
+            type: 'subLabel',
+            x: colMidX,
+            y: startY,
+            width: fullColMidW,
+            height: subLabelSize * 2,
+            text: midLabel,
+            fontSize: subLabelSize
+          });
+        }
+
+        renderTextLines(parent, [midLabel], colMidX, startY + (subLabelSize * 0.72), subLabelSize * 1.2, subLabelSize, '600', textColor, 0.75, maxY, '0.06em');
+
+        // Hairline técnica sutil abaixo da micro-etiqueta
+        const hairline = document.createElementNS('http://www.w3.org/2000/svg', 'line');
+        hairline.setAttribute('x1', colMidX);
+        hairline.setAttribute('y1', (startY + subLabelSize * 1.5).toFixed(2));
+        hairline.setAttribute('x2', colMidX + Math.min(colMidW, 20));
+        hairline.setAttribute('y2', (startY + subLabelSize * 1.5).toFixed(2));
+        hairline.setAttribute('stroke', textColor);
+        hairline.setAttribute('stroke-width', '0.5');
+        hairline.setAttribute('opacity', '0.25');
+        if (parent) parent.appendChild(hairline);
+        // O restante da coluna permanece vazio como respiro suíço
+      }
+
+      // ÚLTIMA COLUNA: CORPO DE LEITURA EM TAMANHO Y (MÚLTIPLOS PARÁGRAFOS)
+      const rEnd = textColRanges[totalCols - 1];
+      const cEndStart = Math.max(0, Math.min(columns.length - 1, rEnd.start));
+      const cEndEnd = Math.max(0, Math.min(columns.length - 1, rEnd.end));
+      const colEndX = columns[cEndStart].x;
+      const fullColEndW = (columns[cEndEnd].x + colWidth) - colEndX;
+      const colEndW = Math.max(10, fullColEndW - Math.max(1.5, state.gutter * 0.25));
+      const colEndH = Math.max(20, maxY - startY);
+
+      const p1 = bodyTexts[0];
+      const p2 = bodyTexts[1];
+      const p3 = bodyTexts[2];
+      const narrative = `${p1}\n\n${p2}\n\n${p3}`;
+
+      if (state.layoutManifest) {
+        state.layoutManifest.push({
+          type: 'bodyColumn',
+          x: colEndX,
+          y: startY,
+          width: fullColEndW,
+          height: colEndH,
+          text: narrative,
+          fontSize: bodySize,
+          fontWeight: '400'
+        });
+      }
+
+      let curYEnd = startY + (bodySize * 0.72);
+      const paragraphs = [p1, p2, p3];
+      for (const p of paragraphs) {
+        const pLines = wrapTextToWidth(p, colEndW, bodySize, '400');
+        curYEnd = renderTextLines(parent, pLines, colEndX, curYEnd, bodyLineH, bodySize, '400', textColor, 0.90, maxY, 'normal');
+        curYEnd += bodySize * 0.55; // respiro harmônico entre parágrafos
+        if (curYEnd >= maxY) break;
+      }
+
+    } else if (totalCols === 2) {
+      // 2 Colunas: Coluna 0 é Lead Tamanho X, Coluna 1 é Corpo Tamanho Y
+      const r0 = textColRanges[0];
+      const c0Start = Math.max(0, Math.min(columns.length - 1, r0.start));
+      const c0End = Math.max(0, Math.min(columns.length - 1, r0.end));
+      const col0X = columns[c0Start].x;
+      const fullCol0W = (columns[c0End].x + colWidth) - col0X;
+      const col0W = Math.max(10, fullCol0W - Math.max(1.5, state.gutter * 0.25));
+      const col0H = Math.max(20, maxY - startY);
+
+      const leadText = leadPhrases[(state.seed) % leadPhrases.length];
+      const leadLines = wrapTextToWidth(leadText, col0W, leadSize, '600');
+
+      if (state.layoutManifest) {
+        state.layoutManifest.push({
+          type: 'leadColumn',
+          x: col0X,
+          y: startY,
+          width: fullCol0W,
+          height: col0H,
+          text: leadText,
+          fontSize: leadSize,
+          fontWeight: '600'
+        });
+      }
+      renderTextLines(parent, leadLines, col0X, startY + (leadSize * 0.72), leadLineH, leadSize, '600', textColor, 0.96, maxY, '-0.02em');
+
+      const r1 = textColRanges[1];
+      const c1Start = Math.max(0, Math.min(columns.length - 1, r1.start));
+      const c1End = Math.max(0, Math.min(columns.length - 1, r1.end));
+      const col1X = columns[c1Start].x;
+      const fullCol1W = (columns[c1End].x + colWidth) - col1X;
+      const col1W = Math.max(10, fullCol1W - Math.max(1.5, state.gutter * 0.25));
+      const col1H = Math.max(20, maxY - startY);
+
+      const p1 = bodyTexts[1];
+      const p2 = bodyTexts[2];
+      const narrative = `${p1}\n\n${p2}`;
+
+      if (state.layoutManifest) {
+        state.layoutManifest.push({
+          type: 'bodyColumn',
+          x: col1X,
+          y: startY,
+          width: fullCol1W,
+          height: col1H,
+          text: narrative,
+          fontSize: bodySize,
+          fontWeight: '400'
+        });
+      }
+
+      let curY1 = startY + (bodySize * 0.72);
+      const paragraphs = [p1, p2];
+      for (const p of paragraphs) {
+        const pLines = wrapTextToWidth(p, col1W, bodySize, '400');
+        curY1 = renderTextLines(parent, pLines, col1X, curY1, bodyLineH, bodySize, '400', textColor, 0.90, maxY, 'normal');
+        curY1 += bodySize * 0.55;
+        if (curY1 >= maxY) break;
+      }
+
+    } else {
+      // 1 Coluna: Split Vertical Lead no topo + Corpo abaixo
+      const r0 = textColRanges[0];
+      const cStart = Math.max(0, Math.min(columns.length - 1, r0.start));
+      const cEnd = Math.max(0, Math.min(columns.length - 1, r0.end));
+      const colX = columns[cStart].x;
+      const fullColW = (columns[cEnd].x + colWidth) - colX;
+      const colW = Math.max(10, fullColW - Math.max(1.5, state.gutter * 0.25));
+
+      const leadText = leadPhrases[(state.seed) % leadPhrases.length];
+      const leadLines = wrapTextToWidth(leadText, colW, leadSize * 0.88, '600');
+      let curY = renderTextLines(parent, leadLines, colX, startY + (leadSize * 0.88 * 0.72), leadLineH * 0.88, leadSize * 0.88, '600', textColor, 0.96, maxY, '-0.02em');
+
+      curY += bodySize * 0.8;
+      if (curY + bodyLineH <= maxY) {
+        const pLines = wrapTextToWidth(bodyTexts[0], colW, bodySize, '400');
+        renderTextLines(parent, pLines, colX, curY + (bodySize * 0.72), bodyLineH, bodySize, '400', textColor, 0.90, maxY, 'normal');
+      }
+    }
+  }
+
+  // 2. MODO DIÁLOGO DE ESCALAS BILÍNGUE
+  // Referência: Capa e miolo de Grid Systems de Josef Müller-Brockmann
+  function renderModeBilingualDialogue(parent, columns, textColRanges, colWidth, startY, maxY, textCopy, baseScale, leadSize, bodySize, bodyLineH, subLabelSize, textColor, accentColor) {
+    const totalCols = textColRanges.length;
+
+    // COLUNA 0: TÍTULO DE SEÇÃO + DECLARAÇÃO TÉCNICA EM TAMANHO X
+    const r0 = textColRanges[0];
+    const c0Start = Math.max(0, Math.min(columns.length - 1, r0.start));
+    const c0End = Math.max(0, Math.min(columns.length - 1, r0.end));
+    const col0X = columns[c0Start].x;
+    const fullCol0W = (columns[c0End].x + colWidth) - col0X;
+    const col0W = Math.max(10, fullCol0W - Math.max(1.5, state.gutter * 0.25));
+
+    const phrase = editorialPhrases[state.seed % editorialPhrases.length];
+    const sectionTitle = phrase.sub.toUpperCase();
+    const subTitleSize = Math.max(getMinUnitSize(12.5), baseScale * 0.68);
+    const subTitleLines = wrapTextToWidth(sectionTitle, col0W, subTitleSize, '700');
+
+    let curY0 = renderTextLines(parent, subTitleLines, col0X, startY + (subTitleSize * 0.72), subTitleSize * 1.18, subTitleSize, '700', textColor, 0.98, maxY, '-0.01em');
+
+    // Sub-bloco técnico em tamanho intermediário
+    curY0 += subTitleSize * 0.45;
+    const techText = "A visual communication manual for graphic designers, typographers and three-dimensional designers.";
+    const techSize = Math.max(getMinUnitSize(10.5), baseScale * 0.52);
+    const techLines = wrapTextToWidth(techText, col0W, techSize, '500');
+    renderTextLines(parent, techLines, col0X, curY0 + (techSize * 0.72), techSize * 1.30, techSize, '500', textColor, 0.85, maxY, 'normal');
+
+    if (state.layoutManifest) {
+      state.layoutManifest.push({
+        type: 'leadColumn',
+        x: col0X,
+        y: startY,
+        width: fullCol0W,
+        height: Math.max(20, maxY - startY),
+        text: `${sectionTitle}\n${techText}`,
+        fontSize: subTitleSize,
+        fontWeight: '700'
+      });
+    }
+
+    // COLUNAS COMPLEMENTARES: CORPO BILÍNGUE / EXPLICATIVO EM TAMANHO Y
+    for (let cIdx = 1; cIdx < totalCols; cIdx++) {
+      const r = textColRanges[cIdx];
+      const cStart = Math.max(0, Math.min(columns.length - 1, r.start));
+      const cEnd = Math.max(0, Math.min(columns.length - 1, r.end));
+      const colX = columns[cStart].x;
+      const fullColW = (columns[cEnd].x + colWidth) - colX;
+      const colW = Math.max(10, fullColW - Math.max(1.5, state.gutter * 0.25));
+
+      const germanHeader = (cIdx === 1) ? "RASTER SYSTEME // GESTALTUNG" : "TYPOGRAFISCHE ORDNUNG";
+      renderTextLines(parent, [germanHeader], colX, startY + (subLabelSize * 0.72), subLabelSize * 1.2, subLabelSize, '700', accentColor, 0.95, maxY, '0.06em');
+
+      const colParagraph = bodyTexts[(cIdx + 1) % bodyTexts.length];
+      const pLines = wrapTextToWidth(colParagraph, colW, bodySize, '400');
+      renderTextLines(parent, pLines, colX, startY + subLabelSize * 2.2 + (bodySize * 0.72), bodyLineH, bodySize, '400', textColor, 0.90, maxY, 'normal');
+
+      if (state.layoutManifest) {
+        state.layoutManifest.push({
+          type: 'bodyColumn',
+          x: colX,
+          y: startY,
+          width: fullColW,
+          height: Math.max(20, maxY - startY),
+          text: `${germanHeader}\n${colParagraph}`,
+          fontSize: bodySize,
+          fontWeight: '400'
+        });
+      }
+    }
+  }
+
+  // 3. MODO CITAÇÃO DESTAQUE COM FIO DE ACENTO + COLUNAS DE APOIO
+  function renderModeQuoteCallout(parent, columns, textColRanges, colWidth, startY, maxY, textCopy, baseScale, bodySize, bodyLineH, subLabelSize, textColor, accentColor) {
+    const totalCols = textColRanges.length;
+
+    // COLUNA 0: CITAÇÃO MANIFESTO EM TAMANHO X COM BARRA VERTICAL VERMELHA/PRETA
+    const r0 = textColRanges[0];
+    const c0Start = Math.max(0, Math.min(columns.length - 1, r0.start));
+    const c0End = Math.max(0, Math.min(columns.length - 1, r0.end));
+    const col0X = columns[c0Start].x;
+    const fullCol0W = (columns[c0End].x + colWidth) - col0X;
+    const col0W = Math.max(10, fullCol0W - Math.max(1.5, state.gutter * 0.25) - 6);
+    const col0H = Math.max(20, maxY - startY);
+
+    const quoteSize = Math.max(getMinUnitSize(13.5), baseScale * 0.72);
+    const quoteLineH = quoteSize * 1.26;
+    const quoteText = "«O espaço em branco não representa o vazio ou a ausência; ele é o suporte ativo que confere autoridade e respiro à mensagem.»";
+    const quoteLines = wrapTextToWidth(quoteText, col0W, quoteSize, '500');
+
+    // Fio de acento vertical à esquerda
+    const bar = document.createElementNS('http://www.w3.org/2000/svg', 'line');
+    bar.setAttribute('x1', col0X);
+    bar.setAttribute('y1', startY);
+    bar.setAttribute('x2', col0X);
+    bar.setAttribute('y2', Math.min(maxY, startY + quoteLines.length * quoteLineH + quoteSize));
+    bar.setAttribute('stroke', accentColor);
+    bar.setAttribute('stroke-width', '2.5');
+    if (parent) parent.appendChild(bar);
+
+    let curY0 = renderTextLines(parent, quoteLines, col0X + 6, startY + (quoteSize * 0.72), quoteLineH, quoteSize, '500', textColor, 0.95, maxY, '-0.01em');
+
+    // Crédito do autor na base da citação
+    curY0 += subLabelSize * 0.8;
+    if (curY0 <= maxY) {
+      renderTextLines(parent, ["// JOSEF MÜLLER-BROCKMANN"], col0X + 6, curY0 + (subLabelSize * 0.72), subLabelSize * 1.2, subLabelSize, '600', textColor, 0.65, maxY, '0.08em');
+    }
+
+    if (state.layoutManifest) {
+      state.layoutManifest.push({
+        type: 'quoteBlock',
+        x: col0X,
+        y: startY,
+        width: fullCol0W,
+        height: col0H,
+        text: quoteText,
+        fontSize: quoteSize,
+        fontWeight: '500'
+      });
+    }
+
+    // COLUNAS RESTANTES: CORPO EM TAMANHO Y
+    for (let cIdx = 1; cIdx < totalCols; cIdx++) {
+      const r = textColRanges[cIdx];
+      const cStart = Math.max(0, Math.min(columns.length - 1, r.start));
+      const cEnd = Math.max(0, Math.min(columns.length - 1, r.end));
+      const colX = columns[cStart].x;
+      const fullColW = (columns[cEnd].x + colWidth) - colX;
+      const colW = Math.max(10, fullColW - Math.max(1.5, state.gutter * 0.25));
+
+      const colParagraph = bodyTexts[(cIdx + state.seed) % bodyTexts.length];
+      const pLines = wrapTextToWidth(colParagraph, colW, bodySize, '400');
+      renderTextLines(parent, pLines, colX, startY + (bodySize * 0.72), bodyLineH, bodySize, '400', textColor, 0.90, maxY, 'normal');
+
+      if (state.layoutManifest) {
+        state.layoutManifest.push({
+          type: 'bodyColumn',
+          x: colX,
+          y: startY,
+          width: fullColW,
+          height: Math.max(20, maxY - startY),
+          text: colParagraph,
+          fontSize: bodySize,
+          fontWeight: '400'
+        });
+      }
+    }
+  }
+
+  // 4. MODO ASSIMETRIA COM ESPAÇO NEGATIVO ATIVO & ÍNDICE
+  function renderModeAsymmetricBreathing(parent, columns, textColRanges, colWidth, startY, maxY, textCopy, baseScale, bodySize, bodyLineH, subLabelSize, textColor, accentColor) {
+    const totalCols = textColRanges.length;
+
+    // COLUNA 0: ESPAÇO EM BRANCO ATIVO COM NÚMERO DE SEÇÃO MONUMENTAL
+    const r0 = textColRanges[0];
+    const c0Start = Math.max(0, Math.min(columns.length - 1, r0.start));
+    const c0End = Math.max(0, Math.min(columns.length - 1, r0.end));
+    const col0X = columns[c0Start].x;
+    const fullCol0W = (columns[c0End].x + colWidth) - col0X;
+
+    const numSize = Math.max(getMinUnitSize(22.0), baseScale * 1.35);
+    renderTextLines(parent, ["01."], col0X, startY + (numSize * 0.72), numSize * 1.1, numSize, '800', accentColor, 0.95, maxY, '-0.04em');
+    renderTextLines(parent, ["ESTUDO DE PROPORÇÃO"], col0X, startY + numSize + (subLabelSize * 0.72), subLabelSize * 1.2, subLabelSize, '700', textColor, 0.70, maxY, '0.08em');
+
+    if (state.layoutManifest) {
+      state.layoutManifest.push({
+        type: 'subLabel',
+        x: col0X,
+        y: startY,
+        width: fullCol0W,
+        height: numSize + subLabelSize * 2,
+        text: "01. ESTUDO DE PROPORÇÃO",
+        fontSize: numSize
+      });
+    }
+
+    // COLUNAS SEGUINTES: CORPO EM TAMANHO Y
+    for (let cIdx = 1; cIdx < totalCols; cIdx++) {
+      const r = textColRanges[cIdx];
+      const cStart = Math.max(0, Math.min(columns.length - 1, r.start));
+      const cEnd = Math.max(0, Math.min(columns.length - 1, r.end));
+      const colX = columns[cStart].x;
+      const fullColW = (columns[cEnd].x + colWidth) - colX;
+      const colW = Math.max(10, fullColW - Math.max(1.5, state.gutter * 0.25));
+
+      const colParagraph = bodyTexts[(cIdx) % bodyTexts.length];
+      const pLines = wrapTextToWidth(colParagraph, colW, bodySize, '400');
+      renderTextLines(parent, pLines, colX, startY + (bodySize * 0.72), bodyLineH, bodySize, '400', textColor, 0.90, maxY, 'normal');
+
+      if (state.layoutManifest) {
+        state.layoutManifest.push({
+          type: 'bodyColumn',
+          x: colX,
+          y: startY,
+          width: fullColW,
+          height: Math.max(20, maxY - startY),
+          text: colParagraph,
+          fontSize: bodySize,
+          fontWeight: '400'
+        });
+      }
+    }
+  }
+
+  // 5. MODO COLUNAS UNIFORMES COM LEAD-IN
+  function renderModeClassicColumns(parent, columns, textColRanges, colWidth, startY, maxY, textCopy, bodySize, bodyLineH, textColor) {
     textColRanges.forEach((range, colIdx) => {
       const cStart = Math.max(0, Math.min(columns.length - 1, range.start));
       const cEnd = Math.max(0, Math.min(columns.length - 1, range.end));
-
       const colX = columns[cStart].x;
-      const colW = (columns[cEnd].x + colWidth) - colX;
+      const fullColW = (columns[cEnd].x + colWidth) - colX;
+      const colW = Math.max(10, fullColW - Math.max(1.5, state.gutter * 0.25));
       const colH = Math.max(20, maxY - startY);
 
-      // Varia o parágrafo por coluna para evitar repetição artificial idêntica
       const colParagraph = bodyTexts[(colIdx + state.seed) % bodyTexts.length] || textCopy;
 
       if (state.layoutManifest) {
@@ -1733,40 +2780,28 @@ document.addEventListener('DOMContentLoaded', () => {
           type: 'bodyColumn',
           x: colX,
           y: startY,
-          width: colW,
+          width: fullColW,
           height: colH,
           text: colParagraph,
-          fontSize: bodySize
+          fontSize: bodySize,
+          fontWeight: '400'
         });
       }
 
       const lines = wrapTextToWidth(colParagraph, colW, bodySize, '400');
-      const textEl = document.createElementNS('http://www.w3.org/2000/svg', 'text');
-      textEl.setAttribute('font-family', 'Inter, sans-serif');
-      textEl.setAttribute('font-size', bodySize);
-      textEl.setAttribute('fill', '#1d1d1f');
-      textEl.setAttribute('opacity', '0.85');
-
-      let curY = startY + bodySize;
-      lines.forEach(l => {
-        if (curY + bodyLineH <= maxY) {
-          const tspan = document.createElementNS('http://www.w3.org/2000/svg', 'tspan');
-          tspan.setAttribute('x', colX);
-          tspan.setAttribute('y', curY);
-          tspan.textContent = l;
-          textEl.appendChild(tspan);
-          curY += bodyLineH;
-        }
-      });
-      if (parent) parent.appendChild(textEl);
+      renderTextLines(parent, lines, colX, startY + (bodySize * 0.72), bodyLineH, bodySize, '400', textColor, 0.92, maxY, 'normal');
     });
   }
 
+
+  // -------------------------------------------------------------------------
+  // METADADOS COMUNS (TOP BARCODE / FOLIO)
+  // -------------------------------------------------------------------------
   function renderStandardMetadata(geom, content, baseScale, s, entropyFactor = 0) {
     const { w, h, margins } = geom;
     const metaGroup = document.createElementNS('http://www.w3.org/2000/svg', 'g');
     metaGroup.setAttribute('id', 'METADATA_MICROTYPOGRAPHY');
-    const metaSize = Math.max(4.8, baseScale * 0.34);
+    const metaSize = Math.max(getMinUnitSize(5.5), baseScale * 0.25);
 
     const r1 = seededRandom(s + 200);
     const r2 = seededRandom(s + 201);
@@ -1931,11 +2966,8 @@ document.addEventListener('DOMContentLoaded', () => {
 
     topbarFormatName.textContent = presets[state.preset]?.label || 'Personalizado';
     
-    let schoolLabel = 'Suíço Modular';
-    if (state.school === 'vandeGraaf') schoolLabel = 'Cânone de Van de Graaf';
-    if (state.school === 'bauhaus') schoolLabel = 'Bauhaus & Tensão Axial';
-    if (state.school === 'brutalist') schoolLabel = 'Brutalismo Pós-Digital';
-    topbarSchoolName.textContent = schoolLabel;
+    const activeArch = state.activeProceduralArchetype || state.archetype;
+    topbarSchoolName.textContent = getArchetypeName(activeArch);
 
     badgeDims.textContent = dimText;
     badgeRatio.textContent = ratioStr;
@@ -2203,15 +3235,18 @@ document.addEventListener('DOMContentLoaded', () => {
     } catch(e) {}
 `;
       } else if (block.type === 'image') {
+        const isBg = !!block.isBg;
+        const targetLayer = isBg ? 'bgLayer' : 'framesLayer';
         manifestScript += `
-    // Quadro de Imagem (${block.label || 'Hero Photography'})
+    // Quadro de Imagem (${block.label || (isBg ? 'Fundo Fotográfico' : 'Hero Photography')})
     try {
-        var imgFrame${idx} = page.rectangles.add(framesLayer);
+        var imgFrame${idx} = page.rectangles.add(${targetLayer});
         imgFrame${idx}.geometricBounds = [${block.y.toFixed(2)}, ${block.x.toFixed(2)}, ${(block.y + block.height).toFixed(2)}, ${(block.x + block.width).toFixed(2)}];
         imgFrame${idx}.contentType = ContentType.GRAPHIC_TYPE;
-        imgFrame${idx}.strokeColor = doc.colors.item("Black");
-        imgFrame${idx}.strokeWeight = 0.5;
-        imgFrame${idx}.strokeTint = 40;
+        imgFrame${idx}.strokeColor = ${isBg ? 'doc.swatches.item("None")' : 'doc.colors.item("Black")'};
+        imgFrame${idx}.strokeWeight = ${isBg ? '0' : '0.5'};
+        imgFrame${idx}.strokeTint = ${isBg ? '0' : '40'};
+        ${isBg ? 'try { imgFrame' + idx + '.sendToBack(); } catch(eSend) {}' : ''}
     } catch(e) {}
 `;
       } else if (block.type === 'statBadge') {
@@ -2236,10 +3271,43 @@ document.addEventListener('DOMContentLoaded', () => {
         } catch(e) {}
     } catch(e) {}
 `;
+      } else if (block.type === 'leadColumn') {
+        const safeText = block.text.replace(/\\/g, '\\\\').replace(/"/g, '\\"');
+        manifestScript += `
+    // Lead Monumental (Tamanho X - Estilo Swiss Style)
+    try {
+        var leadCol${idx} = page.textFrames.add(contentLayer);
+        leadCol${idx}.geometricBounds = [${block.y.toFixed(2)}, ${block.x.toFixed(2)}, ${(block.y + block.height).toFixed(2)}, ${(block.x + block.width).toFixed(2)}];
+        leadCol${idx}.contents = "${safeText}";
+        leadCol${idx}.paragraphs.item(0).appliedParagraphStyle = styleLead;
+    } catch(e) {}
+`;
+      } else if (block.type === 'subLabel') {
+        const safeText = block.text.replace(/\\/g, '\\\\').replace(/"/g, '\\"');
+        manifestScript += `
+    // Micro-Etiqueta Suíça (Coluna de Respiro)
+    try {
+        var subLabel${idx} = page.textFrames.add(contentLayer);
+        subLabel${idx}.geometricBounds = [${block.y.toFixed(2)}, ${block.x.toFixed(2)}, ${(block.y + Math.max(10, block.height)).toFixed(2)}, ${(block.x + block.width).toFixed(2)}];
+        subLabel${idx}.contents = "${safeText}";
+        subLabel${idx}.paragraphs.item(0).appliedParagraphStyle = styleSub;
+    } catch(e) {}
+`;
+      } else if (block.type === 'quoteBlock') {
+        const safeText = block.text.replace(/\\/g, '\\\\').replace(/"/g, '\\"');
+        manifestScript += `
+    // Citação Destaque (Pull-Quote com Fio)
+    try {
+        var quoteCol${idx} = page.textFrames.add(contentLayer);
+        quoteCol${idx}.geometricBounds = [${block.y.toFixed(2)}, ${block.x.toFixed(2)}, ${(block.y + block.height).toFixed(2)}, ${(block.x + block.width).toFixed(2)}];
+        quoteCol${idx}.contents = "${safeText}";
+        quoteCol${idx}.paragraphs.item(0).appliedParagraphStyle = styleQuote;
+    } catch(e) {}
+`;
       } else if (block.type === 'bodyColumn') {
         const safeText = block.text.replace(/\\/g, '\\\\').replace(/"/g, '\\"');
         manifestScript += `
-    // Coluna Editorial Snapped no Grid
+    // Coluna Editorial Snapped no Grid (Tamanho Y)
     try {
         var bodyCol${idx} = page.textFrames.add(contentLayer);
         bodyCol${idx}.geometricBounds = [${block.y.toFixed(2)}, ${block.x.toFixed(2)}, ${(block.y + block.height).toFixed(2)}, ${(block.x + block.width).toFixed(2)}];
@@ -2311,9 +3379,14 @@ function createLayoutForgeDocument() {
         }
     }
 
+    var bgLayer = getOrCreateLayer("LayoutForge - Imagem de Fundo (BG)", UIColors.LIGHT_BLUE);
     var guidesLayer = getOrCreateLayer("LayoutForge - Guias de Grade", UIColors.CYAN);
     var framesLayer = getOrCreateLayer("LayoutForge - Quadros de Imagem", UIColors.MAGENTA);
     var contentLayer = getOrCreateLayer("LayoutForge - Diagramação & Tipografia", UIColors.CHARCOAL);
+
+    try {
+        bgLayer.move(ElementPlacement.AT_END);
+    } catch(eLyrMove) {}
 
     // 4. Inserir Guias Nativas Verticais (Colunas)
     try {
@@ -2370,6 +3443,24 @@ function createLayoutForgeDocument() {
         leading: 15, 
         capitalization: Capitalization.ALL_CAPS,
         tint: 65 
+    });
+
+    var styleLead = getOrCreateParaStyle("LayoutForge / Lead Monumental", { 
+        name: "LayoutForge / Lead Monumental", 
+        appliedFont: "Arial", 
+        fontStyle: "Bold", 
+        pointSize: 16.5, 
+        leading: 20, 
+        hyphenation: false 
+    });
+
+    var styleQuote = getOrCreateParaStyle("LayoutForge / Citação Destaque", { 
+        name: "LayoutForge / Citação Destaque", 
+        appliedFont: "Arial", 
+        fontStyle: "Italic", 
+        pointSize: 13.5, 
+        leading: 17.5, 
+        hyphenation: false 
     });
 
     var styleBody = getOrCreateParaStyle("LayoutForge / Corpo de Texto", { 
@@ -2657,18 +3748,61 @@ createLayoutForgeDocument();
   layoutArchetype.addEventListener('change', (e) => {
     state.archetype = e.target.value;
     state.seed = Math.floor(Math.random() * 89999) + 10000;
+    if (state.archetype === 'random_infinite') {
+      const current = state.activeProceduralArchetype;
+      const available = allArchetypesList.filter(a => a !== current);
+      state.activeProceduralArchetype = available[Math.floor(Math.random() * available.length)];
+    } else {
+      state.activeProceduralArchetype = state.archetype;
+    }
     renderArtboard();
+    const archName = getArchetypeName(state.activeProceduralArchetype || state.archetype);
+    showToast(`Arquétipo: ${archName}`);
   });
+
+  if (textHierarchySelect) {
+    textHierarchySelect.addEventListener('change', (e) => {
+      state.textHierarchy = e.target.value;
+      renderArtboard();
+      const labels = {
+        'creative_auto': '✨ Dinâmico Criativo (Tam. X na Col. 1, Tam. Y na Col. 3/Fim)',
+        'lead_and_body': '👑 Lead Monumental (Tam. X) + Corpo (Tam. Y) [Müller-Brockmann]',
+        'bilingual_dialogue': '🇩🇪 Diálogo de Escalas (Grid Systems)',
+        'quote_callout': '💬 Citação Destaque (Tam. X) + Apoio (Tam. Y)',
+        'asymmetric_breathing': '⚖️ Assimetria com Espaço Negativo (Respiro Suíço)',
+        'classic_columns': '📖 Colunas Uniformes Equilibradas'
+      };
+      showToast(`Ritmo Tipográfico: ${labels[state.textHierarchy] || state.textHierarchy}`);
+    });
+  }
 
   btnRollLayout.addEventListener('click', () => {
     state.seed = Math.floor(Math.random() * 89999) + 10000;
+    
+    // Sorteia um novo arquétipo aleatório garantidamente diferente do anterior
+    if (state.archetype === 'random_infinite' || !state.archetype) {
+      const current = state.activeProceduralArchetype;
+      const available = allArchetypesList.filter(a => a !== current);
+      state.activeProceduralArchetype = available[Math.floor(Math.random() * available.length)];
+    } else {
+      // Se estiver em um arquétipo específico, mas o usuário clicou no botão para gerar aleatório:
+      state.seed = Math.floor(Math.random() * 89999) + 10000;
+    }
+    
     renderArtboard();
-    showToast(`Nova variação gerada (Seed #${state.seed})`);
+    const currentArch = state.activeProceduralArchetype || state.archetype;
+    const archName = getArchetypeName(currentArch);
+    showToast(`✓ Nova Composição: ${archName} (Seed #${state.seed})`);
   });
 
   btnResetLayout.addEventListener('click', () => {
     state.seed = 94021;
     state.entropy = 15;
+    state.archetype = 'random_infinite';
+    state.textHierarchy = 'creative_auto';
+    state.activeProceduralArchetype = 'swiss_monumental_top';
+    if (layoutArchetype) layoutArchetype.value = 'random_infinite';
+    if (textHierarchySelect) textHierarchySelect.value = 'creative_auto';
     entropySlider.value = 15;
     entropyVal.textContent = '15%';
     renderArtboard();
@@ -2676,6 +3810,87 @@ createLayoutForgeDocument();
   });
 
   // VISIBILIDADE DAS CAMADAS
+  // CONTROLES DE IMAGENS & BACKGROUND (SEÇÃO 04)
+  const countDescriptions = {
+    'auto': 'Distribuição procedural conforme arquétipo ativo',
+    '0': '0 Imagens: Manifesto tipográfico puro (zero fotos no miolo)',
+    '1': '1 Imagem: Hero fotográfico monumental de grande impacto',
+    '2': '2 Imagens: Dupla editorial / split modular equilibrado',
+    '3': '3 Imagens: 1 Hero dominante + 2 detalhes empilhados',
+    '4': '4 Imagens: Matriz modular 2x2 perfeitamente snappada',
+    '5': '5 Imagens: 1 Hero amplo + 4 módulos de apoio em lookbook',
+    '6': '6 Imagens: Grade catalográfica modular completa (3x2 ou 2x3)'
+  };
+
+  const countBadges = {
+    'auto': 'Auto',
+    '0': '0 Fotos',
+    '1': '1 Foto',
+    '2': '2 Fotos',
+    '3': '3 Fotos',
+    '4': '4 Fotos',
+    '5': '5 Fotos',
+    '6': '6 Fotos'
+  };
+
+  if (imageCountChips) {
+    imageCountChips.addEventListener('click', (e) => {
+      const btn = e.target.closest('.chip-btn');
+      if (!btn) return;
+      imageCountChips.querySelectorAll('.chip-btn').forEach(b => b.classList.remove('active'));
+      btn.classList.add('active');
+      const val = btn.dataset.count;
+      state.imageCount = val;
+      if (imageCountBadge) imageCountBadge.textContent = countBadges[val] || val;
+      if (imageCountDesc) imageCountDesc.textContent = countDescriptions[val] || '';
+      if (imageDistributionGroup) {
+        imageDistributionGroup.style.display = (val === '0') ? 'none' : 'block';
+      }
+      renderArtboard();
+      showToast(`Slots de imagem ajustados: ${countBadges[val] || val}`);
+    });
+  }
+
+  if (imageDistributionSelect) {
+    imageDistributionSelect.addEventListener('change', (e) => {
+      state.imageDistribution = e.target.value;
+      renderArtboard();
+    });
+  }
+
+  if (bgImageModeSelect) {
+    bgImageModeSelect.addEventListener('change', (e) => {
+      state.bgImageMode = e.target.value;
+      if (bgContrastRow) {
+        bgContrastRow.style.display = (state.bgImageMode === 'none') ? 'none' : 'flex';
+      }
+      renderArtboard();
+      const label = bgImageModeSelect.options[bgImageModeSelect.selectedIndex].text;
+      showToast(`Imagem de Fundo: ${label}`);
+    });
+  }
+
+  if (checkBgTextContrast) {
+    checkBgTextContrast.addEventListener('change', (e) => {
+      state.bgTextContrast = e.target.checked;
+      renderArtboard();
+    });
+  }
+
+  if (showBgImageCheck) {
+    showBgImageCheck.addEventListener('change', (e) => {
+      state.showBgImage = e.target.checked;
+      renderArtboard();
+    });
+  }
+
+  if (showImageFramesCheck) {
+    showImageFramesCheck.addEventListener('change', (e) => {
+      state.showImageFrames = e.target.checked;
+      renderArtboard();
+    });
+  }
+
   showColumnsCheck.addEventListener('change', (e) => { state.showColumns = e.target.checked; renderArtboard(); });
   showRowsCheck.addEventListener('change', (e) => { state.showRows = e.target.checked; renderArtboard(); });
   showMarginsCheck.addEventListener('change', (e) => { state.showMargins = e.target.checked; renderArtboard(); });
